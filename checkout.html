@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MSI Gaming - Checkout</title>
+    <link rel="stylesheet" href="css/variables.css">
+    <link rel="stylesheet" href="css/checkout-styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="checkout-container">
+        <!-- Header -->
+        <header class="checkout-header">
+            <div class="header-content">
+                <h1>MSI Gaming</h1>
+                <p>Complete Your Purchase</p>
+            </div>
+            <a href="index.html" class="back-link">
+                <i class="fas fa-arrow-left"></i> Back to Shop
+            </a>
+        </header>
+
+        <!-- Main Content -->
+        <main class="checkout-content">
+            <div class="checkout-grid">
+                <!-- Left: Form -->
+                <section class="checkout-form-section">
+                    <!-- Shipping Info -->
+                    <div class="form-section">
+                        <h2>Shipping Information</h2>
+                        <form id="shippingForm" class="form-grid">
+                            <div class="form-group full">
+                                <label>Full Name</label>
+                                <input type="text" id="fullName" required>
+                            </div>
+                            <div class="form-group full">
+                                <label>Email Address</label>
+                                <input type="email" id="email" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Phone Number</label>
+                                <input type="tel" id="phone" required>
+                            </div>
+                            <div class="form-group">
+                                <label>City</label>
+                                <input type="text" id="city" required>
+                            </div>
+                            <div class="form-group full">
+                                <label>Address</label>
+                                <input type="text" id="address" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Postal Code</label>
+                                <input type="text" id="postalCode" required>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Payment Info -->
+                    <div class="form-section">
+                        <h2>Payment Method</h2>
+                        <div class="payment-methods">
+                            <label class="payment-option active">
+                                <input type="radio" name="payment" value="gcash" checked>
+                                <span><i class="fas fa-mobile-alt"></i> GCash</span>
+                            </label>
+                            <label class="payment-option">
+                                <input type="radio" name="payment" value="paymaya">
+                                <span><i class="fas fa-wallet"></i> PayMaya</span>
+                            </label>
+                            <label class="payment-option">
+                                <input type="radio" name="payment" value="credit-card">
+                                <span><i class="fas fa-credit-card"></i> Credit Card</span>
+                            </label>
+                        </div>
+
+                        <!-- GCash Details -->
+                        <div id="gcashForm" class="payment-details active">
+                            <h4>GCash Payment</h4>
+                            <div class="form-group full">
+                                <label>GCash Number</label>
+                                <input type="tel" id="gcashNumber" placeholder="09XX XXX XXXX">
+                            </div>
+                            <div class="info-box">
+                                <i class="fas fa-info-circle"></i>
+                                Payment link will be sent to your GCash registered number
+                            </div>
+                        </div>
+
+                        <!-- PayMaya Details -->
+                        <div id="payMayaForm" class="payment-details">
+                            <h4>PayMaya Payment</h4>
+                            <div class="form-group full">
+                                <label>Email or Mobile Number</label>
+                                <input type="text" id="payMayaNumber" placeholder="email@example.com or 09XX XXX XXXX">
+                            </div>
+                            <div class="info-box">
+                                <i class="fas fa-info-circle"></i>
+                                You will be redirected to PayMaya to complete payment
+                            </div>
+                        </div>
+
+                        <!-- Credit Card Details -->
+                        <div id="creditCardForm" class="payment-details">
+                            <form id="cardForm" class="form-grid">
+                                <div class="form-group full">
+                                    <label>Card Number</label>
+                                    <input type="text" id="cardNumber" placeholder="1234 5678 9012 3456">
+                                </div>
+                                <div class="form-group">
+                                    <label>Expiry Date</label>
+                                    <input type="text" id="expiryDate" placeholder="MM/YY">
+                                </div>
+                                <div class="form-group">
+                                    <label>CVV</label>
+                                    <input type="text" id="cvv" placeholder="123">
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Terms & Conditions -->
+                    <div class="terms-section">
+                        <label>
+                            <input type="checkbox" id="termsCheckbox" required>
+                            <span>I agree to the terms and conditions</span>
+                        </label>
+                    </div>
+                </section>
+
+                <!-- Right: Order Summary -->
+                <aside class="order-summary-section">
+                    <div class="summary-card">
+                        <h3>Order Summary</h3>
+
+                        <div class="summary-items" id="summaryItems">
+                            <!-- Items will be populated by JS -->
+                        </div>
+
+                        <div class="summary-divider"></div>
+
+                        <div class="summary-row">
+                            <span>Subtotal</span>
+                            <span id="subtotal">$0.00</span>
+                        </div>
+
+                        <div class="summary-row">
+                            <span>Shipping</span>
+                            <span id="shipping">$10.00</span>
+                        </div>
+
+                        <div class="summary-row">
+                            <span>Tax (10%)</span>
+                            <span id="tax">$0.00</span>
+                        </div>
+
+                        <div class="summary-divider"></div>
+
+                        <div class="summary-total">
+                            <span>Total</span>
+                            <span id="totalPrice">$0.00</span>
+                        </div>
+
+                        <button class="btn-place-order" id="placeOrderBtn">
+                            <i class="fas fa-lock"></i> Place Order
+                        </button>
+
+                        <div id="errorMessage" class="error-message"></div>
+                        <div id="successMessage" class="success-message"></div>
+                    </div>
+                </aside>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/auth.js"></script>
+    <script src="js/checkout.js"></script>
+</body>
+</html>

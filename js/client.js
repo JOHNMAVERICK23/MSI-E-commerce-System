@@ -140,7 +140,7 @@ function displayProducts(products) {
                 <p class="product-description">${product.description || 'Premium gaming component'}</p>
                 <div class="product-footer">
                     <span class="product-price">$${parseFloat(product.price).toFixed(2)}</span>
-                    <button class="btn-view" onclick="openProductDetail(${product.id}); return false;">View Details</button>
+                    <button class="btn-view" onclick="openProductDetail(${product.id})">View Details</button>
                 </div>
             </div>
         </div>
@@ -194,15 +194,6 @@ function openProductDetail(productId) {
     
     console.log('Product modal opened');
     return false;
-}
-
-
-function closeProductModal() {
-    const productModal = document.getElementById('productModal');
-    const overlay = document.getElementById('overlay');
-    
-    if (productModal) productModal.classList.remove('active');
-    if (overlay) overlay.classList.remove('active');
 }
 
 function increaseQuantity() {

@@ -66,9 +66,24 @@ function setupEventListeners() {
     const checkoutBtn = document.getElementById('checkoutBtn');
     if (checkoutBtn) checkoutBtn.addEventListener('click', goToCheckout);
 
-    // Modal close
-    const closeModal = document.querySelector('.close-modal');
-    if (closeModal) closeModal.addEventListener('click', closeProductModal);
+    // --- ITO ANG INAYOS NA BAHAGI ---
+    // Ngayon, pinapakinggan na nito ang LAHAT ng close buttons
+    const allCloseButtons = document.querySelectorAll('.close-modal');
+    allCloseButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            // Isara ang pinakamalapit na modal na parent ng button
+            const modalToClose = button.closest('.modal');
+            if (modalToClose) {
+                modalToClose.classList.remove('active');
+            }
+            // Isara din ang overlay
+            const overlay = document.getElementById('overlay');
+            if (overlay) {
+                overlay.classList.remove('active');
+            }
+        });
+    });
+    // --- WAKAS NG INAYOS NA BAHAGI ---
 
     // Quantity buttons in modal
     const decreaseBtn = document.getElementById('decreaseQty');
@@ -150,42 +165,37 @@ function filterProducts() {
 
 function openProductDetail(productId) {
     console.log('Opening product detail for ID:', productId);
-    const product = allProducts.find(p => parseInt(p.id) === parseInt(productId));
+    
+    // INAYOS DITO: Pinalitan ang parseInt at === ng mas simpleng ==
+    const product = allProducts.find(p => p.id == productId);
     
     if (!product) {
-        console.error('Product not found:', productId);
+        console.error('Produkto na may ID na', productId, 'ay hindi mahanap.');
         alert('Product not found');
         return false;
     }
 
-    selectedProductId = productId;
+    selectedProductId = productId; // Itago ang ID ng napiling produkto
 
-    const detailName = document.getElementById('detailName');
-    const detailCategory = document.getElementById('detailCategory');
-    const detailDescription = document.getElementById('detailDescription');
-    const detailPrice = document.getElementById('detailPrice');
-    const detailStock = document.getElementById('detailStock');
+    // I-populate ang modal ng product info
+    document.getElementById('detailName').textContent = product.name;
+    document.getElementById('detailCategory').textContent = product.category;
+    document.getElementById('detailDescription').textContent = product.description || 'Premium gaming component';
+    document.getElementById('detailPrice').textContent = '$' + parseFloat(product.price).toFixed(2);
+    document.getElementById('detailStock').textContent = product.stock + ' in stock';
+    
     const quantityInput = document.getElementById('quantityInput');
-    
-    if (detailName) detailName.textContent = product.name;
-    if (detailCategory) detailCategory.textContent = product.category;
-    if (detailDescription) detailDescription.textContent = product.description || 'Premium gaming component';
-    if (detailPrice) detailPrice.textContent = '$' + parseFloat(product.price).toFixed(2);
-    if (detailStock) detailStock.textContent = product.stock + ' in stock';
-    if (quantityInput) {
-        quantityInput.value = 1;
-        quantityInput.max = product.stock;
-    }
+    quantityInput.value = 1;
+    quantityInput.max = product.stock; // Itakda ang maximum na pwedeng bilhin base sa stock
 
-    const productModal = document.getElementById('productModal');
-    const overlay = document.getElementById('overlay');
-    
-    if (productModal) productModal.classList.add('active');
-    if (overlay) overlay.classList.add('active');
+    // Ipakita ang modal
+    document.getElementById('productModal').classList.add('active');
+    document.getElementById('overlay').classList.add('active');
     
     console.log('Product modal opened');
     return false;
 }
+
 
 function closeProductModal() {
     const productModal = document.getElementById('productModal');
@@ -212,15 +222,25 @@ function decreaseQuantity() {
 
 function addToCartFromModal() {
     const quantity = parseInt(document.getElementById('quantityInput').value);
-    const product = allProducts.find(p => p.id === selectedProductId);
+    
+    // Siguraduhin na may napiling produkto
+    if (!selectedProductId) {
+        showNotification('Walang napiling produkto.', 'error');
+        return;
+    }
+    
+    // INAYOS DITO: Gumamit din ng == para consistent
+    const product = allProducts.find(p => p.id == selectedProductId);
 
     if (product) {
         addToCart(product, quantity);
         closeProductModal();
         showNotification('Added to cart!', 'success');
+    } else {
+        console.error('Produkto na may ID na', selectedProductId, 'ay hindi mahanap.');
+        showNotification('Hindi ma-add sa cart ang produkto.', 'error');
     }
 }
-
 function addToCart(product, quantity) {
     console.log('Adding to cart:', product.name, 'Qty:', quantity);
     const existingItem = cart.find(item => item.id === product.id);

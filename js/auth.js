@@ -31,28 +31,21 @@ async function handleLogin(e) {
     }
 
     try {
-        console.log('Attempting login with username:', username);
-
         const response = await fetch('php/auth.php', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                action: 'login',
+                action: 'login', // Palaging 'login' lang ang ipapadala natin
                 username: username,
                 password: password
             })
         });
 
-        console.log('Response status:', response.status);
-
         if (!response.ok) {
-            throw new Error('Network response was not ok: ' + response.status);
+            throw new Error(`Network response was not ok: ${response.statusText}`);
         }
 
         const data = await response.json();
-        console.log('Login response:', data);
 
         if (data.status === 'success') {
             if (successMsg) {
@@ -62,13 +55,9 @@ async function handleLogin(e) {
 
             localStorage.setItem('user', JSON.stringify(data.user));
             localStorage.setItem('token', data.token || '');
-            localStorage.setItem('loginTime', new Date().getTime());
-
-            console.log('User data stored:', data.user);
 
             setTimeout(() => {
                 const redirectUrl = getRedirectUrl(data.user.role);
-                console.log('Redirecting to:', redirectUrl);
                 window.location.href = redirectUrl;
             }, 1500);
         } else {
@@ -76,7 +65,6 @@ async function handleLogin(e) {
                 errorMsg.textContent = data.message || 'Login failed';
                 errorMsg.classList.add('show');
             }
-            console.log('Login failed:', data.message);
         }
     } catch (error) {
         console.error('Error during login:', error);

@@ -101,96 +101,45 @@ function getProduct() {
 function createProduct() {
     global $conn;
     
-    // Check if this is multipart form data (file upload)
-    if (isset($_FILES['image'])) {
-        // Handle file upload
-        $name = $conn->real_escape_string($_POST['name'] ?? '');
-        $category = $conn->real_escape_string($_POST['category'] ?? '');
-        $description = $conn->real_escape_string($_POST['description'] ?? '');
-        $price = floatval($_POST['price'] ?? 0);
-        $stock = intval($_POST['stock'] ?? 0);
-        $created_by = intval($_POST['created_by'] ?? 1);
-        
-        // Validate
-        if (!$name || $price <= 0 || $stock < 0) {
-            echo json_encode(['status' => 'error', 'message' => 'Invalid product data']);
-            return;
-        }
-        
-        $image_url = '';
-        
-        // Handle image upload
-        if ($_FILES['image']['size'] > 0) {
-            $file = $_FILES['image'];
-            $fileName = $file['name'];
-            $fileTmp = $file['tmp_name'];
-            $fileSize = $file['size'];
-            $fileError = $file['error'];
-            
-            // Validate file
-            if ($fileError === 0 && $fileSize <= 5000000) { // 5MB max
-                $fileExt = explode('.', $fileName);
-                $fileActualExt = strtolower(end($fileExt));
-                
-                $allowed = ['jpg', 'jpeg', 'png', 'gif'];
-                if (in_array($fileActualExt, $allowed)) {
-                    $fileNameNew = 'product_' . time() . '.' . $fileActualExt;
-                    $fileDestination = '../assets/images/' . $fileNameNew;
-                    
-                    if (!is_dir('../assets/images')) {
-                        mkdir('../assets/images', 0777, true);
-                    }
-                    
-                    if (move_uploaded_file($fileTmp, $fileDestination)) {
-                        $image_url = 'assets/images/' . $fileNameNew;
-                    }
-                }
-            }
-        }
-        
-        $query = "INSERT INTO products (name, category, description, price, stock, image_url, status, created_by) 
-                  VALUES ('$name', '$category', '$description', $price, $stock, '$image_url', 'active', $created_by)";
-        
-        if ($conn->query($query)) {
-            $productId = $conn->insert_id;
-            echo json_encode(['status' => 'success', 'message' => 'Product created', 'product_id' => $productId]);
-        } else {
-            echo json_encode(['status' => 'error', 'message' => 'Error: ' . $conn->error]);
-        }
-    } else {
-        // JSON request
-        $input = json_decode(file_get_contents('php://input'), true);
-        
-        if (!isset($input['name']) || !isset($input['price']) || !isset($input['stock'])) {
-            echo json_encode(['status' => 'error', 'message' => 'Missing required fields']);
-            return;
-        }
-        
-        $name = $conn->real_escape_string($input['name']);
-        $category = $conn->real_escape_string($input['category'] ?? '');
-        $description = $conn->real_escape_string($input['description'] ?? '');
-        $price = floatval($input['price']);
-        $stock = intval($input['stock']);
-        $image_url = $conn->real_escape_string($input['image_url'] ?? '');
-        $created_by = intval($input['created_by'] ?? 1);
-        
-        if ($price <= 0 || $stock < 0) {
-            echo json_encode(['status' => 'error', 'message' => 'Invalid data']);
-            return;
-        }
-        
-        $query = "INSERT INTO products (name, category, description, price, stock, image_url, status, created_by) 
-                  VALUES ('$name', '$category', '$description', $price, $stock, '$image_url', 'active', $created_by)";
-        
-        if ($conn->query($query)) {
-            $productId = $conn->insert_id;
-            echo json_encode(['status' => 'success', 'message' => 'Product created', 'product_id' => $productId]);
-        } else {
-            echo json_encode(['status' => 'error', 'message' => 'Error: ' . $conn->error]);
-        }
+    // Ang code na ito ay para sa JSON request na galing sa admin.js mo
+    $input = json_decode(file_get_contents('php://input'), true);
+    
+    // Validation: Siguraduhin na ang mga kailangan na fields ay may laman
+    if (!isset($input['name']) || !isset($input['price']) || !isset($input['stock'])) {
+        echo json_encode(['status' => 'error', 'message' => 'Name, price, at stock ay kailangan.']);
+        return;
     }
+    
+    // Linisin ang input para iwas SQL injection
+    $name = $conn->real_escape_string($input['name']);
+    $category = $conn->real_escape_string($input['category'] ?? 'Uncategorized');
+    $description = $conn->real_escape_string($input['description'] ?? '');
+    $price = floatval($input['price']);
+    $stock = intval($input['stock']);
+    
+    // Karagdagang validation
+    if (empty($name) || $price <= 0 || $stock < 0) {
+        echo json_encode(['status' => 'error', 'message' => 'May maling data. Siguraduhin na ang price ay higit sa 0 at ang stock ay hindi negatibo.']);
+        return;
+    }
+    
+    // Ito na ang bagong INSERT query, wala nang 'created_by'
+    $query = "INSERT INTO products (name, category, description, price, stock, status) 
+              VALUES (?, ?, ?, ?, ?, 'active')";
+    
+    $stmt = $conn->prepare($query);
+    // 'sssdi' - s: string, d: double, i: integer
+    $stmt->bind_param('sssdi', $name, $category, $description, $price, $stock);
+    
+    if ($stmt->execute()) {
+        $productId = $conn->insert_id;
+        echo json_encode(['status' => 'success', 'message' => 'Produkto ay matagumpay na naidagdag!', 'product_id' => $productId]);
+    } else {
+        // Ipakita ang totoong error mula sa database para malaman natin kung may iba pang problema
+        echo json_encode(['status' => 'error', 'message' => 'Database Error: ' . $stmt->error]);
+    }
+    $stmt->close();
 }
-
 /**
  * UPDATE EXISTING PRODUCT
  */

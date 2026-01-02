@@ -1,5 +1,31 @@
 /* File: css/admin-styles.css */
 
+/* Add to admin-styles.css */
+
+#imagePreview img {
+    max-width: 200px;
+    max-height: 200px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+}
+
+.modal-content {
+    max-width: 600px; /* Increase modal width */
+}
+
+.form-group input[type="file"] {
+    padding: 8px;
+    background: var(--bg-muted);
+    border: 2px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-foreground);
+    width: 100%;
+}
+
+.loading.error {
+    color: var(--status-destructive);
+}
+
 .admin-container {
     display: flex;
     height: 100vh;

@@ -156,32 +156,40 @@
                 <h2>Add/Edit Product</h2>
                 <button class="close-modal">&times;</button>
             </div>
-            <form id="productForm" class="modal-form">
+            <form id="productForm" class="modal-form" enctype="multipart/form-data">
                 <input type="hidden" id="productId">
                 <div class="form-group">
-                    <label>Product Name</label>
+                    <label>Product Name *</label>
                     <input type="text" id="productName" required>
                 </div>
                 <div class="form-group">
-                    <label>Category</label>
+                    <label>Category *</label>
                     <input type="text" id="productCategory" required>
                 </div>
                 <div class="form-group">
                     <label>Description</label>
-                    <textarea id="productDesc"></textarea>
+                    <textarea id="productDesc" rows="3"></textarea>
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Price</label>
-                        <input type="number" id="productPrice" step="0.01" required>
+                        <label>Price *</label>
+                        <input type="number" id="productPrice" step="0.01" min="0.01" required>
                     </div>
                     <div class="form-group">
-                        <label>Stock</label>
-                        <input type="number" id="productStock" required>
+                        <label>Stock *</label>
+                        <input type="number" id="productStock" min="0" required>
                     </div>
                 </div>
+                <div class="form-group">
+                    <label>Product Image</label>
+                    <input type="file" id="productImage" accept="image/*">
+                    <small style="display: block; margin-top: 5px; color: #888;">
+                        Accepted: JPG, PNG, GIF, WebP (Max 5MB)
+                    </small>
+                    <div id="imagePreview" style="margin-top: 10px;"></div>
+                </div>
                 <div class="modal-footer">
-                    <button type="submit" class="btn-primary">Save</button>
+                    <button type="submit" class="btn-primary">Save Product</button>
                     <button type="button" class="btn-secondary" id="cancelProductBtn">Cancel</button>
                 </div>
             </form>

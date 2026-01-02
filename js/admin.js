@@ -4,11 +4,15 @@ let salesChart, orderStatusChart;
 let currentEditingProduct = null;
 
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('Admin page loaded');
+    
     // Check authentication
     if (!requireLogin('admin')) return;
 
     const user = getUser();
-    document.getElementById('username').textContent = user.username;
+    if (user && user.username) {
+        document.getElementById('username').textContent = user.username;
+    }
 
     // Setup navigation
     setupNavigation();
@@ -21,6 +25,9 @@ document.addEventListener('DOMContentLoaded', () => {
     loadProducts();
     loadStaff();
     loadOrders();
+    
+    // Add event listeners
+    document.getElementById('logoutBtn').addEventListener('click', logout);
 });
 
 function setupNavigation() {
@@ -41,7 +48,10 @@ function setupNavigation() {
             });
 
             // Show selected tab
-            document.getElementById(tabName).classList.add('active');
+            const targetTab = document.getElementById(tabName);
+            if (targetTab) {
+                targetTab.classList.add('active');
+            }
 
             // Trigger resize for charts
             if (salesChart) setTimeout(() => salesChart.resize(), 100);
@@ -51,45 +61,83 @@ function setupNavigation() {
 }
 
 function setupModals() {
-    // Product Modal with Image Upload
+    console.log('Setting up modals...');
+    
+    // Product Modal
     const productModal = document.getElementById('productModal');
     const productForm = document.getElementById('productForm');
     const addProductBtn = document.getElementById('addProductBtn');
     const cancelProductBtn = document.getElementById('cancelProductBtn');
 
-    addProductBtn.addEventListener('click', () => {
-        currentEditingProduct = null;
-        productForm.reset();
-        document.getElementById('productId').value = '';
-        document.getElementById('imagePreview').innerHTML = '';
-        productModal.classList.add('active');
-    });
-
-    productForm.addEventListener('submit', handleProductSubmit);
-
-    // Image preview
-    const imageInput = document.getElementById('productImage');
-    if (imageInput) {
-        imageInput.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const preview = document.getElementById('imagePreview');
-                    preview.innerHTML = `
-                        <img src="${e.target.result}" alt="Preview" style="max-width: 200px; max-height: 200px;">
-                        <p>${file.name} (${(file.size / 1024).toFixed(2)} KB)</p>
-                    `;
-                }
-                reader.readAsDataURL(file);
+    if (addProductBtn) {
+        console.log('Add product button found');
+        addProductBtn.addEventListener('click', () => {
+            console.log('Add product button clicked');
+            currentEditingProduct = null;
+            if (productForm) productForm.reset();
+            if (productModal) {
+                productModal.classList.add('active');
+                console.log('Product modal opened');
             }
         });
+    } else {
+        console.error('Add product button not found!');
     }
+
+    if (cancelProductBtn && productModal) {
+        cancelProductBtn.addEventListener('click', () => {
+            productModal.classList.remove('active');
+        });
+    }
+
+    if (productForm) {
+        productForm.addEventListener('submit', handleProductSubmit);
+    }
+
+    // Staff Modal
+    const staffModal = document.getElementById('staffModal');
+    const staffForm = document.getElementById('staffForm');
+    const addStaffBtn = document.getElementById('addStaffBtn');
+    const cancelStaffBtn = document.getElementById('cancelStaffBtn');
+
+    if (addStaffBtn && staffModal) {
+        addStaffBtn.addEventListener('click', () => {
+            if (staffForm) staffForm.reset();
+            staffModal.classList.add('active');
+        });
+    }
+
+    if (cancelStaffBtn && staffModal) {
+        cancelStaffBtn.addEventListener('click', () => {
+            staffModal.classList.remove('active');
+        });
+    }
+
+    if (staffForm) {
+        staffForm.addEventListener('submit', handleStaffSubmit);
+    }
+
+    // Close modals on background click
+    document.querySelectorAll('.close-modal').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const modal = e.target.closest('.modal');
+            if (modal) modal.classList.remove('active');
+        });
+    });
+    
+    // Close modal when clicking outside
+    document.querySelectorAll('.modal').forEach(modal => {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.remove('active');
+            }
+        });
+    });
 }
+
 
 async function loadDashboard() {
     try {
-        // Fetch dashboard data
         const response = await fetch('php/dashboard.php?action=get_stats');
         const data = await response.json();
 
@@ -97,94 +145,93 @@ async function loadDashboard() {
             const stats = data.data;
 
             // Update stat cards
-            document.getElementById('totalProducts').textContent = stats.totalProducts;
-            document.getElementById('totalOrders').textContent = stats.totalOrders;
-            document.getElementById('totalRevenue').textContent = '$' + parseFloat(stats.totalRevenue).toFixed(2);
-            document.getElementById('activeStaff').textContent = stats.activeStaff;
+            updateElementText('totalProducts', stats.totalProducts || 0);
+            updateElementText('totalOrders', stats.totalOrders || 0);
+            updateElementText('totalRevenue', '$' + parseFloat(stats.totalRevenue || 0).toFixed(2));
+            updateElementText('activeStaff', stats.activeStaff || 0);
 
-            // Create charts
-            createCharts(stats);
-
+            // Create charts if data available
+            if (stats.monthlyRevenue && stats.monthlyRevenue.length > 0) {
+                createCharts(stats);
+            }
+            
             // Load activity log
-            loadActivityLog(stats.recentActivity);
+            if (stats.recentActivity) {
+                loadActivityLog(stats.recentActivity);
+            }
         }
     } catch (error) {
         console.error('Error loading dashboard:', error);
     }
 }
 
+function updateElementText(id, text) {
+    const element = document.getElementById(id);
+    if (element) element.textContent = text;
+}
+
 function createCharts(stats) {
     // Sales Chart
-    const salesCtx = document.getElementById('salesChart').getContext('2d');
-    if (salesChart) salesChart.destroy();
-    
-    salesChart = new Chart(salesCtx, {
-        type: 'line',
-        data: {
-            labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-            datasets: [{
-                label: 'Sales',
-                data: [1200, 1900, 3000, 2500, 2200, 2900, 3200],
-                borderColor: 'hsl(0 85% 55%)',
-                backgroundColor: 'rgba(255, 68, 68, 0.1)',
-                borderWidth: 2,
-                fill: true,
-                tension: 0.4
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: {
-                    labels: { color: 'hsl(0 0% 95%)' }
-                }
+    const salesCtx = document.getElementById('salesChart');
+    if (salesCtx) {
+        if (salesChart) salesChart.destroy();
+        
+        salesChart = new Chart(salesCtx.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                datasets: [{
+                    label: 'Sales',
+                    data: [1200, 1900, 3000, 2500, 2200, 2900, 3200],
+                    borderColor: 'hsl(0 85% 55%)',
+                    backgroundColor: 'rgba(255, 68, 68, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4
+                }]
             },
-            scales: {
-                y: {
-                    ticks: { color: 'hsl(0 0% 95%)' },
-                    grid: { color: 'hsl(0 0% 18%)' }
-                },
-                x: {
-                    ticks: { color: 'hsl(0 0% 95%)' },
-                    grid: { color: 'hsl(0 0% 18%)' }
-                }
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
             }
-        }
-    });
+        });
+    }
 
     // Order Status Chart
-    const statusCtx = document.getElementById('orderStatusChart').getContext('2d');
-    if (orderStatusChart) orderStatusChart.destroy();
+    const statusCtx = document.getElementById('orderStatusChart');
+    if (statusCtx) {
+        if (orderStatusChart) orderStatusChart.destroy();
 
-    orderStatusChart = new Chart(statusCtx, {
-        type: 'doughnut',
-        data: {
-            labels: ['Pending', 'Processing', 'Completed', 'Cancelled'],
-            datasets: [{
-                data: [stats.ordersPending, stats.ordersProcessing, stats.ordersCompleted, stats.ordersCancelled],
-                backgroundColor: [
-                    'hsl(38 92% 50%)',
-                    'hsl(200 100% 50%)',
-                    'hsl(142 76% 36%)',
-                    'hsl(0 72% 50%)'
-                ]
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: {
-                    labels: { color: 'hsl(0 0% 95%)' }
-                }
+        orderStatusChart = new Chart(statusCtx.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Pending', 'Processing', 'Completed', 'Cancelled'],
+                datasets: [{
+                    data: [
+                        stats.ordersPending || 0,
+                        stats.ordersProcessing || 0,
+                        stats.ordersCompleted || 0,
+                        stats.ordersCancelled || 0
+                    ],
+                    backgroundColor: [
+                        'hsl(38 92% 50%)',
+                        'hsl(200 100% 50%)',
+                        'hsl(142 76% 36%)',
+                        'hsl(0 72% 50%)'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
             }
-        }
-    });
+        });
+    }
 }
 
 function loadActivityLog(activities) {
     const activityLog = document.getElementById('activityLog');
+    if (!activityLog) return;
     
     if (!activities || activities.length === 0) {
         activityLog.innerHTML = '<p class="loading">No recent activity</p>';
@@ -193,16 +240,17 @@ function loadActivityLog(activities) {
 
     activityLog.innerHTML = activities.map(activity => `
         <div class="activity-item">
-            <div class="activity-icon ${activity.type}">
+            <div class="activity-icon ${activity.type || 'info'}">
                 <i class="fas fa-${getActivityIcon(activity.type)}"></i>
             </div>
             <div class="activity-details">
-                <p class="activity-text">${activity.text}</p>
+                <p class="activity-text">${activity.text || 'Activity'}</p>
                 <p class="activity-time">${formatTime(activity.timestamp)}</p>
             </div>
         </div>
     `).join('');
 }
+
 
 function getActivityIcon(type) {
     const icons = {
@@ -210,12 +258,16 @@ function getActivityIcon(type) {
         'edit': 'edit',
         'delete': 'trash',
         'staff': 'user',
-        'order': 'shopping-cart'
+        'order': 'shopping-cart',
+        'info': 'info-circle'
     };
-    return icons[type] || 'info';
+    return icons[type] || 'info-circle';
 }
 
+
 function formatTime(timestamp) {
+    if (!timestamp) return 'Recently';
+    
     const date = new Date(timestamp);
     const now = new Date();
     const diff = now - date;
@@ -231,18 +283,57 @@ function formatTime(timestamp) {
     return date.toLocaleDateString();
 }
 
+function requireLogin(requiredRole) {
+    const user = getUser();
+    
+    if (!user) {
+        window.location.href = 'login.html';
+        return false;
+    }
+
+    if (requiredRole && user.role !== requiredRole) {
+        window.location.href = 'login.html';
+        return false;
+    }
+
+    return true;
+}
+
+function getUser() {
+    try {
+        const user = localStorage.getItem('user');
+        return user ? JSON.parse(user) : null;
+    } catch (error) {
+        return null;
+    }
+}
+
+function logout() {
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    localStorage.removeItem('cart');
+    window.location.href = 'login.html';
+}
+
 async function loadProducts() {
     try {
         const response = await fetch('php/products.php?action=list');
         const data = await response.json();
 
         const productsList = document.getElementById('productsList');
+        if (!productsList) {
+            console.error('Products list element not found');
+            return;
+        }
 
         if (data.status === 'success' && data.data.length > 0) {
             productsList.innerHTML = data.data.map(product => `
                 <div class="product-card">
                     <div class="product-image">
-                        <i class="fas fa-box"></i>
+                        ${product.image_url && product.image_url !== 'assets/default-product.png' 
+                            ? `<img src="${product.image_url}" alt="${product.name}" style="width:100%; height:100%; object-fit:cover;">`
+                            : `<i class="fas fa-box"></i>`
+                        }
                     </div>
                     <div class="product-info">
                         <h3 class="product-name">${product.name}</h3>
@@ -261,81 +352,99 @@ async function loadProducts() {
                 </div>
             `).join('');
         } else {
-            productsList.innerHTML = '<p class="loading">No products yet</p>';
+            productsList.innerHTML = '<p class="loading">No products found</p>';
         }
     } catch (error) {
         console.error('Error loading products:', error);
+        const productsList = document.getElementById('productsList');
+        if (productsList) {
+            productsList.innerHTML = '<p class="loading error">Error loading products</p>';
+        }
     }
 }
 
-async function editProduct(productId) {
-    try {
-        const response = await fetch('php/products.php?action=list');
-        const data = await response.json();
-
-        if (data.status === 'success') {
-            const product = data.data.find(p => p.id == productId);
-            if (product) {
+function editProduct(productId) {
+    console.log('Editing product:', productId);
+    
+    // Show loading state
+    toast.info('Loading', 'Loading product details...');
+    
+    // Fetch product details
+    fetch(`php/products.php?action=get&id=${productId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                const product = data.data;
                 currentEditingProduct = productId;
                 
+                // Populate form
                 document.getElementById('productId').value = product.id;
                 document.getElementById('productName').value = product.name;
                 document.getElementById('productCategory').value = product.category;
                 document.getElementById('productDesc').value = product.description || '';
                 document.getElementById('productPrice').value = product.price;
                 document.getElementById('productStock').value = product.stock;
-
-                const preview = document.getElementById('imagePreview');
-                if (product.image_url) {
-                    preview.innerHTML = `<img src="${product.image_url}" alt="Current" style="max-width: 200px;">`;
-                } else {
-                    preview.innerHTML = '<p>No image</p>';
+                
+                // Open modal
+                const productModal = document.getElementById('productModal');
+                if (productModal) {
+                    productModal.classList.add('active');
+                    toast.success('Loaded', 'Product details loaded');
                 }
-
-                document.getElementById('productModal').classList.add('active');
+            } else {
+                toast.error('Error', data.message || 'Failed to load product');
             }
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        toast.error('Error', 'Failed to load product details');
-    }
+        })
+        .catch(error => {
+            console.error('Error loading product:', error);
+            toast.error('Error', 'Failed to load product details');
+        });
 }
 
 async function deleteProduct(productId) {
     if (!confirm('Are you sure you want to delete this product?')) return;
 
     try {
-        const response = await fetch('php/products.php?action=delete', {
+        const response = await fetch('php/products.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: productId })
+            body: JSON.stringify({ 
+                action: 'delete',
+                id: productId 
+            })
         });
 
         const data = await response.json();
         if (data.status === 'success') {
+            toast.success('Success', 'Product deleted successfully');
             loadProducts();
             loadDashboard();
+        } else {
+            toast.error('Error', data.message || 'Failed to delete product');
         }
     } catch (error) {
         console.error('Error deleting product:', error);
+        toast.error('Error', 'Failed to delete product');
     }
 }
 
 async function handleProductSubmit(e) {
     e.preventDefault();
+    console.log('Product form submitted');
 
     const formData = new FormData();
     formData.append('action', currentEditingProduct ? 'update' : 'create');
-    formData.append('id', document.getElementById('productId').value);
+    formData.append('id', document.getElementById('productId').value || '');
     formData.append('name', document.getElementById('productName').value);
     formData.append('category', document.getElementById('productCategory').value);
     formData.append('description', document.getElementById('productDesc').value);
     formData.append('price', document.getElementById('productPrice').value);
     formData.append('stock', document.getElementById('productStock').value);
 
-    const imageFile = document.getElementById('productImage').files[0];
-    if (imageFile) {
-        formData.append('image', imageFile);
+    // Handle image upload
+    const imageInput = document.getElementById('productImage');
+    if (imageInput && imageInput.files[0]) {
+        formData.append('image', imageInput.files[0]);
     }
 
     try {
@@ -345,6 +454,7 @@ async function handleProductSubmit(e) {
         });
 
         const data = await response.json();
+        console.log('Product save response:', data);
 
         if (data.status === 'success') {
             toast.success('Success', data.message);
@@ -353,10 +463,10 @@ async function handleProductSubmit(e) {
             loadProducts();
             loadDashboard();
         } else {
-            toast.error('Error', data.message);
+            toast.error('Error', data.message || 'Failed to save product');
         }
     } catch (error) {
-        console.error('Error:', error);
+        console.error('Error saving product:', error);
         toast.error('Error', 'An error occurred while saving the product');
     }
 }
@@ -388,7 +498,7 @@ async function loadStaff() {
                 </div>
             `).join('');
         } else {
-            staffList.innerHTML = '<p class="loading">No staff members yet</p>';
+            staffList.innerHTML = '<p class="loading">No staff members found</p>';
         }
     } catch (error) {
         console.error('Error loading staff:', error);
@@ -415,12 +525,16 @@ async function handleStaffSubmit(e) {
         const data = await response.json();
 
         if (data.status === 'success') {
+            toast.success('Success', 'Staff account created successfully');
             document.getElementById('staffModal').classList.remove('active');
             document.getElementById('staffForm').reset();
             loadStaff();
+        } else {
+            toast.error('Error', data.message || 'Failed to create staff account');
         }
     } catch (error) {
         console.error('Error creating staff:', error);
+        toast.error('Error', 'Failed to create staff account');
     }
 }
 
@@ -437,10 +551,14 @@ async function toggleStaffStatus(staffId) {
 
         const data = await response.json();
         if (data.status === 'success') {
+            toast.success('Success', 'Staff status updated');
             loadStaff();
+        } else {
+            toast.error('Error', data.message || 'Failed to update status');
         }
     } catch (error) {
         console.error('Error toggling staff status:', error);
+        toast.error('Error', 'Failed to update staff status');
     }
 }
 
@@ -459,10 +577,14 @@ async function deleteStaff(staffId) {
 
         const data = await response.json();
         if (data.status === 'success') {
+            toast.success('Success', 'Staff deleted successfully');
             loadStaff();
+        } else {
+            toast.error('Error', data.message || 'Failed to delete staff');
         }
     } catch (error) {
         console.error('Error deleting staff:', error);
+        toast.error('Error', 'Failed to delete staff');
     }
 }
 
@@ -477,7 +599,7 @@ async function loadOrders() {
             ordersList.innerHTML = data.data.map(order => `
                 <div class="order-card">
                     <div class="order-header">
-                        <h3 class="order-number">Order #${order.order_number}</h3>
+                        <h3 class="order-number">${order.order_number}</h3>
                         <span class="order-status ${order.status}">${order.status}</span>
                     </div>
                     <div class="order-details">
@@ -497,12 +619,18 @@ async function loadOrders() {
                 </div>
             `).join('');
         } else {
-            ordersList.innerHTML = '<p class="loading">No orders yet</p>';
+            ordersList.innerHTML = '<p class="loading">No orders found</p>';
         }
     } catch (error) {
         console.error('Error loading orders:', error);
     }
 }
 
+
 // Logout
 document.getElementById('logoutBtn').addEventListener('click', logout);
+
+window.editProduct = editProduct;
+window.deleteProduct = deleteProduct;
+window.toggleStaffStatus = toggleStaffStatus;
+window.deleteStaff = deleteStaff;

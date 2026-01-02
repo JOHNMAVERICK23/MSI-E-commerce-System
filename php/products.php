@@ -1,25 +1,23 @@
 <?php
-// File: php/products.php
-// PRODUCT MANAGEMENT - CRUD OPERATIONS
 
 header('Content-Type: application/json');
 require_once 'config.php';
 
 $action = isset($_GET['action']) ? $_GET['action'] : '';
 
-// Handle JSON POST requests
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($_POST)) {
+// Handle multipart form data for image upload
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['image'])) {
+    $action = $_POST['action'] ?? '';
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($_POST) && empty($_FILES)) {
     $input = json_decode(file_get_contents('php://input'), true);
     $action = $input['action'] ?? '';
 }
 
-// Route actions
 switch ($action) {
     case 'list':
         listProducts();
-        break;
-    case 'get':
-        getProduct();
         break;
     case 'create':
         createProduct();
@@ -30,41 +28,60 @@ switch ($action) {
     case 'delete':
         deleteProduct();
         break;
-    case 'get_by_category':
-        getProductsByCategory();
-        break;
     default:
         echo json_encode(['status' => 'error', 'message' => 'Invalid action']);
 }
-
 /**
  * LIST ALL ACTIVE PRODUCTS
  */
 function listProducts() {
     global $conn;
     
-    $query = "SELECT id, name, category, description, price, stock, image_url, status, created_at 
-              FROM products 
-              WHERE status = 'active' 
-              ORDER BY created_at DESC";
-    
+    $query = "SELECT * FROM products WHERE status = 'active' ORDER BY created_at DESC";
     $result = $conn->query($query);
-    
-    if (!$result) {
-        echo json_encode(['status' => 'error', 'message' => $conn->error]);
-        return;
-    }
     
     $products = [];
     while ($row = $result->fetch_assoc()) {
+        // Set default image if none
+        if (empty($row['image_url'])) {
+            $row['image_url'] = 'assets/default-product.png';
+        }
         $products[] = $row;
     }
     
-    echo json_encode([
-        'status' => 'success',
-        'count' => count($products),
-        'data' => $products
-    ]);
+    echo json_encode(['status' => 'success', 'data' => $products]);
+}
+
+
+function handleImageUpload($file) {
+    $uploadDir = '../uploads/products/';
+    
+    // Create directory if it doesn't exist
+    if (!file_exists($uploadDir)) {
+        mkdir($uploadDir, 0777, true);
+    }
+    
+    // Generate unique filename
+    $fileName = uniqid() . '_' . preg_replace('/[^a-zA-Z0-9\.\-]/', '_', $file['name']);
+    $uploadPath = $uploadDir . $fileName;
+    
+    // Check file type
+    $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!in_array($file['type'], $allowedTypes)) {
+        return '';
+    }
+    
+    // Check file size (max 5MB)
+    if ($file['size'] > 5 * 1024 * 1024) {
+        return '';
+    }
+    
+    // Move uploaded file
+    if (move_uploaded_file($file['tmp_name'], $uploadPath)) {
+        return 'uploads/products/' . $fileName;
+    }
+    
+    return '';
 }
 
 /**
@@ -101,43 +118,32 @@ function getProduct() {
 function createProduct() {
     global $conn;
     
-    // Ang code na ito ay para sa JSON request na galing sa admin.js mo
-    $input = json_decode(file_get_contents('php://input'), true);
+    // Handle image upload
+    $imageUrl = '';
+    if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+        $imageUrl = handleImageUpload($_FILES['image']);
+    }
     
-    // Validation: Siguraduhin na ang mga kailangan na fields ay may laman
-    if (!isset($input['name']) || !isset($input['price']) || !isset($input['stock'])) {
-        echo json_encode(['status' => 'error', 'message' => 'Name, price, at stock ay kailangan.']);
+    $name = $_POST['name'] ?? '';
+    $category = $_POST['category'] ?? '';
+    $description = $_POST['description'] ?? '';
+    $price = floatval($_POST['price'] ?? 0);
+    $stock = intval($_POST['stock'] ?? 0);
+    
+    if (empty($name) || $price <= 0) {
+        echo json_encode(['status' => 'error', 'message' => 'Product name and price are required']);
         return;
     }
     
-    // Linisin ang input para iwas SQL injection
-    $name = $conn->real_escape_string($input['name']);
-    $category = $conn->real_escape_string($input['category'] ?? 'Uncategorized');
-    $description = $conn->real_escape_string($input['description'] ?? '');
-    $price = floatval($input['price']);
-    $stock = intval($input['stock']);
-    
-    // Karagdagang validation
-    if (empty($name) || $price <= 0 || $stock < 0) {
-        echo json_encode(['status' => 'error', 'message' => 'May maling data. Siguraduhin na ang price ay higit sa 0 at ang stock ay hindi negatibo.']);
-        return;
-    }
-    
-    // Ito na ang bagong INSERT query, wala nang 'created_by'
-    $query = "INSERT INTO products (name, category, description, price, stock, status) 
-              VALUES (?, ?, ?, ?, ?, 'active')";
-    
-    $stmt = $conn->prepare($query);
-    // 'sssdi' - s: string, d: double, i: integer
-    $stmt->bind_param('sssdi', $name, $category, $description, $price, $stock);
+    $stmt = $conn->prepare("INSERT INTO products (name, category, description, price, stock, image_url) VALUES (?, ?, ?, ?, ?, ?)");
+    $stmt->bind_param('sssdis', $name, $category, $description, $price, $stock, $imageUrl);
     
     if ($stmt->execute()) {
-        $productId = $conn->insert_id;
-        echo json_encode(['status' => 'success', 'message' => 'Produkto ay matagumpay na naidagdag!', 'product_id' => $productId]);
+        echo json_encode(['status' => 'success', 'message' => 'Product created successfully']);
     } else {
-        // Ipakita ang totoong error mula sa database para malaman natin kung may iba pang problema
-        echo json_encode(['status' => 'error', 'message' => 'Database Error: ' . $stmt->error]);
+        echo json_encode(['status' => 'error', 'message' => 'Failed to create product']);
     }
+    
     $stmt->close();
 }
 /**
@@ -145,51 +151,40 @@ function createProduct() {
  */
 function updateProduct() {
     global $conn;
-    $input = json_decode(file_get_contents('php://input'), true);
     
-    if (!isset($input['id'])) {
-        echo json_encode(['status' => 'error', 'message' => 'Product ID required']);
+    $id = intval($_POST['id'] ?? 0);
+    $name = $_POST['name'] ?? '';
+    $category = $_POST['category'] ?? '';
+    $description = $_POST['description'] ?? '';
+    $price = floatval($_POST['price'] ?? 0);
+    $stock = intval($_POST['stock'] ?? 0);
+    
+    if ($id <= 0 || empty($name) || $price <= 0) {
+        echo json_encode(['status' => 'error', 'message' => 'Invalid product data']);
         return;
     }
     
-    $id = intval($input['id']);
-    $name = $conn->real_escape_string($input['name'] ?? '');
-    $category = $conn->real_escape_string($input['category'] ?? '');
-    $description = $conn->real_escape_string($input['description'] ?? '');
-    $price = floatval($input['price'] ?? 0);
-    $stock = intval($input['stock'] ?? 0);
-    $image_url = $conn->real_escape_string($input['image_url'] ?? '');
-    
-    // Validate
-    if ($price <= 0) {
-        echo json_encode(['status' => 'error', 'message' => 'Price must be greater than 0']);
-        return;
+    // Handle image upload if new image provided
+    $imageUrl = null;
+    if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+        $imageUrl = handleImageUpload($_FILES['image']);
     }
     
-    if ($stock < 0) {
-        echo json_encode(['status' => 'error', 'message' => 'Stock cannot be negative']);
-        return;
-    }
-    
-    $query = "UPDATE products 
-              SET name = '$name', 
-                  category = '$category', 
-                  description = '$description', 
-                  price = $price, 
-                  stock = $stock, 
-                  image_url = '$image_url',
-                  updated_at = NOW() 
-              WHERE id = $id";
-    
-    if ($conn->query($query)) {
-        if ($conn->affected_rows > 0) {
-            echo json_encode(['status' => 'success', 'message' => 'Product updated successfully']);
-        } else {
-            echo json_encode(['status' => 'error', 'message' => 'Product not found or no changes made']);
-        }
+    if ($imageUrl) {
+        $stmt = $conn->prepare("UPDATE products SET name = ?, category = ?, description = ?, price = ?, stock = ?, image_url = ? WHERE id = ?");
+        $stmt->bind_param('sssdisi', $name, $category, $description, $price, $stock, $imageUrl, $id);
     } else {
-        echo json_encode(['status' => 'error', 'message' => 'Error updating product: ' . $conn->error]);
+        $stmt = $conn->prepare("UPDATE products SET name = ?, category = ?, description = ?, price = ?, stock = ? WHERE id = ?");
+        $stmt->bind_param('sssdii', $name, $category, $description, $price, $stock, $id);
     }
+    
+    if ($stmt->execute()) {
+        echo json_encode(['status' => 'success', 'message' => 'Product updated successfully']);
+    } else {
+        echo json_encode(['status' => 'error', 'message' => 'Failed to update product']);
+    }
+    
+    $stmt->close();
 }
 
 /**
@@ -197,27 +192,25 @@ function updateProduct() {
  */
 function deleteProduct() {
     global $conn;
-    $input = json_decode(file_get_contents('php://input'), true);
     
-    if (!isset($input['id'])) {
-        echo json_encode(['status' => 'error', 'message' => 'Product ID required']);
+    $input = json_decode(file_get_contents('php://input'), true);
+    $id = intval($input['id'] ?? 0);
+    
+    if ($id <= 0) {
+        echo json_encode(['status' => 'error', 'message' => 'Invalid product ID']);
         return;
     }
     
-    $id = intval($input['id']);
+    $stmt = $conn->prepare("UPDATE products SET status = 'inactive' WHERE id = ?");
+    $stmt->bind_param('i', $id);
     
-    // Soft delete - set status to inactive
-    $query = "UPDATE products SET status = 'inactive', updated_at = NOW() WHERE id = $id";
-    
-    if ($conn->query($query)) {
-        if ($conn->affected_rows > 0) {
-            echo json_encode(['status' => 'success', 'message' => 'Product deleted successfully']);
-        } else {
-            echo json_encode(['status' => 'error', 'message' => 'Product not found']);
-        }
+    if ($stmt->execute()) {
+        echo json_encode(['status' => 'success', 'message' => 'Product deleted successfully']);
     } else {
-        echo json_encode(['status' => 'error', 'message' => 'Error deleting product: ' . $conn->error]);
+        echo json_encode(['status' => 'error', 'message' => 'Failed to delete product']);
     }
+    
+    $stmt->close();
 }
 
 /**

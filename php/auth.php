@@ -1,6 +1,4 @@
 <?php
-// File: php/auth.php
-// FIXED & SECURED AUTHENTICATION LOGIC
 header('Content-Type: application/json');
 require_once 'config.php';
 
@@ -14,81 +12,93 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 switch ($action) {
     case 'login':
-        handleUniversalLogin(); // Gagamitin na natin itong isa para sa lahat
+        handleUniversalLogin();
         break;
     case 'register_customer':
         registerCustomer();
         break;
-    default:
-        echo json_encode(['status' => 'error', 'message' => 'Invalid action specified']);
+    case 'create_staff':
+        createStaff();
         break;
+    case 'list_staff':
+        listStaff();
+        break;
+    case 'toggle_staff_status':
+        toggleStaffStatus();
+        break;
+    case 'delete_staff':
+        deleteStaff();
+        break;
+    default:
+        echo json_encode(['status' => 'error', 'message' => 'Invalid action']);
 }
 
-/**
- * UNIVERSAL LOGIN - Para sa Admin, Staff, at Customer
- */
 function handleUniversalLogin() {
     global $conn;
-    $input = json_decode(file_get_contents('php://input'), true);
     
+    $input = json_decode(file_get_contents('php://input'), true);
     $username = $input['username'] ?? '';
     $password = $input['password'] ?? '';
-
+    
     if (empty($username) || empty($password)) {
         echo json_encode(['status' => 'error', 'message' => 'Username and password required']);
         return;
     }
-
-    // Subukang hanapin ang user sa 'users' table
-    $stmt = $conn->prepare("SELECT id, username, password, role, status FROM users WHERE username = ?");
+    
+    // Try to find user
+    $stmt = $conn->prepare("SELECT id, username, email, password, role, status FROM users WHERE username = ?");
     $stmt->bind_param('s', $username);
     $stmt->execute();
     $result = $stmt->get_result();
-
+    
     if ($result->num_rows === 0) {
         echo json_encode(['status' => 'error', 'message' => 'Invalid username or password']);
         return;
     }
-
+    
     $user = $result->fetch_assoc();
     $stmt->close();
-
-    if ($user['status'] === 'inactive') {
+    
+    if ($user['status'] !== 'active') {
         echo json_encode(['status' => 'error', 'message' => 'Account is inactive']);
         return;
     }
-
-    // I-verify ang password gamit ang hash
+    
+    // Verify password
     if (password_verify($password, $user['password'])) {
-        // Alisin ang password bago ipadala pabalik
+        // Remove password from response
         unset($user['password']);
         
-        // Kung customer, kunin ang first_name at last_name
+        // If customer, get additional info
         if ($user['role'] === 'customer') {
-            $stmt_customer = $conn->prepare("SELECT first_name, last_name FROM customers WHERE user_id = ?");
-            $stmt_customer->bind_param('i', $user['id']);
-            $stmt_customer->execute();
-            $customer_result = $stmt_customer->get_result();
-            if ($customer_result->num_rows > 0) {
-                $customer_data = $customer_result->fetch_assoc();
-                $user['first_name'] = $customer_data['first_name'];
-                $user['last_name'] = $customer_data['last_name'];
+            $stmt = $conn->prepare("SELECT first_name, last_name, phone FROM customers WHERE user_id = ?");
+            $stmt->bind_param('i', $user['id']);
+            $stmt->execute();
+            $customerResult = $stmt->get_result();
+            
+            if ($customerResult->num_rows > 0) {
+                $customerData = $customerResult->fetch_assoc();
+                $user = array_merge($user, $customerData);
             }
-            $stmt_customer->close();
+            $stmt->close();
         }
-
+        
+        // Generate token
         $token = bin2hex(random_bytes(32));
-        echo json_encode(['status' => 'success', 'user' => $user, 'token' => $token]);
+        
+        echo json_encode([
+            'status' => 'success',
+            'message' => 'Login successful',
+            'user' => $user,
+            'token' => $token
+        ]);
     } else {
         echo json_encode(['status' => 'error', 'message' => 'Invalid username or password']);
     }
 }
-
-/**
- * CUSTOMER REGISTRATION (Walang pinagbago dito, tama na ito)
- */
 function registerCustomer() {
     global $conn;
+    
     $input = json_decode(file_get_contents('php://input'), true);
     
     $firstName = trim($input['firstName'] ?? '');
@@ -97,48 +107,63 @@ function registerCustomer() {
     $email = trim($input['email'] ?? '');
     $password = $input['password'] ?? '';
     $phone = trim($input['phone'] ?? '');
-
-    if (empty($firstName) || empty($lastName) || empty($username) || empty($email) || empty($password)) {
-        echo json_encode(['status' => 'error', 'message' => 'Kailangan punan ang lahat ng fields.']);
-        return;
-    }
-
-    $stmt_check = $conn->prepare("SELECT id FROM users WHERE username = ? OR email = ?");
-    $stmt_check->bind_param('ss', $username, $email);
-    $stmt_check->execute();
-    if ($stmt_check->get_result()->num_rows > 0) {
-        echo json_encode(['status' => 'error', 'message' => 'Ang username o email ay nagamit na.']);
-        $stmt_check->close();
-        return;
-    }
-    $stmt_check->close();
-
-    $hashed_password = password_hash($password, PASSWORD_BCRYPT);
     
+    // Validation
+    if (empty($firstName) || empty($lastName) || empty($username) || 
+        empty($email) || empty($password) || empty($phone)) {
+        echo json_encode(['status' => 'error', 'message' => 'All fields are required']);
+        return;
+    }
+    
+    if (strlen($password) < 6) {
+        echo json_encode(['status' => 'error', 'message' => 'Password must be at least 6 characters']);
+        return;
+    }
+    
+    // Check if username/email already exists
+    $stmt = $conn->prepare("SELECT id FROM users WHERE username = ? OR email = ?");
+    $stmt->bind_param('ss', $username, $email);
+    $stmt->execute();
+    
+    if ($stmt->get_result()->num_rows > 0) {
+        echo json_encode(['status' => 'error', 'message' => 'Username or email already exists']);
+        $stmt->close();
+        return;
+    }
+    $stmt->close();
+    
+    // Hash password
+    $hashedPassword = password_hash($password, PASSWORD_BCRYPT);
+    
+    // Start transaction
     $conn->begin_transaction();
+    
     try {
-        $stmt_user = $conn->prepare("INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, 'customer')");
-        $stmt_user->bind_param('sss', $username, $email, $hashed_password);
-        $stmt_user->execute();
-        $user_id = $conn->insert_id;
-        $stmt_user->close();
-
-        $stmt_customer = $conn->prepare("INSERT INTO customers (user_id, first_name, last_name, phone) VALUES (?, ?, ?, ?)");
-        $stmt_customer->bind_param('isss', $user_id, $firstName, $lastName, $phone);
-        $stmt_customer->execute();
-        $stmt_customer->close();
-
+        // Insert into users table
+        $stmt = $conn->prepare("INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, 'customer')");
+        $stmt->bind_param('sss', $username, $email, $hashedPassword);
+        $stmt->execute();
+        $userId = $conn->insert_id;
+        $stmt->close();
+        
+        // Insert into customers table
+        $stmt = $conn->prepare("INSERT INTO customers (user_id, first_name, last_name, phone) VALUES (?, ?, ?, ?)");
+        $stmt->bind_param('isss', $userId, $firstName, $lastName, $phone);
+        $stmt->execute();
+        $stmt->close();
+        
         $conn->commit();
-        echo json_encode(['status' => 'success', 'message' => 'Account ay matagumpay na nagawa!']);
-
-    } catch (mysqli_sql_exception $exception) {
+        
+        echo json_encode([
+            'status' => 'success',
+            'message' => 'Registration successful! You can now login.'
+        ]);
+        
+    } catch (Exception $e) {
         $conn->rollback();
-        echo json_encode(['status' => 'error', 'message' => 'Database Error: ' . $exception->getMessage()]);
+        echo json_encode(['status' => 'error', 'message' => 'Registration failed: ' . $e->getMessage()]);
     }
 }
-/**
- * CREATE NEW STAFF ACCOUNT
- */
 function createStaff() {
     global $conn;
     $input = json_decode(file_get_contents('php://input'), true);

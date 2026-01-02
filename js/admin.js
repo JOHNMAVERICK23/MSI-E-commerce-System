@@ -51,7 +51,7 @@ function setupNavigation() {
 }
 
 function setupModals() {
-    // Product Modal
+    // Product Modal with Image Upload
     const productModal = document.getElementById('productModal');
     const productForm = document.getElementById('productForm');
     const addProductBtn = document.getElementById('addProductBtn');
@@ -61,38 +61,30 @@ function setupModals() {
         currentEditingProduct = null;
         productForm.reset();
         document.getElementById('productId').value = '';
+        document.getElementById('imagePreview').innerHTML = '';
         productModal.classList.add('active');
-    });
-
-    cancelProductBtn.addEventListener('click', () => {
-        productModal.classList.remove('active');
     });
 
     productForm.addEventListener('submit', handleProductSubmit);
 
-    // Staff Modal
-    const staffModal = document.getElementById('staffModal');
-    const staffForm = document.getElementById('staffForm');
-    const addStaffBtn = document.getElementById('addStaffBtn');
-    const cancelStaffBtn = document.getElementById('cancelStaffBtn');
-
-    addStaffBtn.addEventListener('click', () => {
-        staffForm.reset();
-        staffModal.classList.add('active');
-    });
-
-    cancelStaffBtn.addEventListener('click', () => {
-        staffModal.classList.remove('active');
-    });
-
-    staffForm.addEventListener('submit', handleStaffSubmit);
-
-    // Close modals on background click
-    document.querySelectorAll('.close-modal').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.target.closest('.modal').classList.remove('active');
+    // Image preview
+    const imageInput = document.getElementById('productImage');
+    if (imageInput) {
+        imageInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const preview = document.getElementById('imagePreview');
+                    preview.innerHTML = `
+                        <img src="${e.target.result}" alt="Preview" style="max-width: 200px; max-height: 200px;">
+                        <p>${file.name} (${(file.size / 1024).toFixed(2)} KB)</p>
+                    `;
+                }
+                reader.readAsDataURL(file);
+            }
         });
-    });
+    }
 }
 
 async function loadDashboard() {
@@ -276,12 +268,37 @@ async function loadProducts() {
     }
 }
 
-function editProduct(productId) {
-    // Mock edit - in real implementation fetch product data
-    const productModal = document.getElementById('productModal');
-    document.getElementById('productId').value = productId;
-    currentEditingProduct = productId;
-    productModal.classList.add('active');
+async function editProduct(productId) {
+    try {
+        const response = await fetch('php/products.php?action=list');
+        const data = await response.json();
+
+        if (data.status === 'success') {
+            const product = data.data.find(p => p.id == productId);
+            if (product) {
+                currentEditingProduct = productId;
+                
+                document.getElementById('productId').value = product.id;
+                document.getElementById('productName').value = product.name;
+                document.getElementById('productCategory').value = product.category;
+                document.getElementById('productDesc').value = product.description || '';
+                document.getElementById('productPrice').value = product.price;
+                document.getElementById('productStock').value = product.stock;
+
+                const preview = document.getElementById('imagePreview');
+                if (product.image_url) {
+                    preview.innerHTML = `<img src="${product.image_url}" alt="Current" style="max-width: 200px;">`;
+                } else {
+                    preview.innerHTML = '<p>No image</p>';
+                }
+
+                document.getElementById('productModal').classList.add('active');
+            }
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        toast.error('Error', 'Failed to load product details');
+    }
 }
 
 async function deleteProduct(productId) {
@@ -307,32 +324,40 @@ async function deleteProduct(productId) {
 async function handleProductSubmit(e) {
     e.preventDefault();
 
-    const formData = {
-        action: currentEditingProduct ? 'update' : 'create',
-        id: document.getElementById('productId').value || null,
-        name: document.getElementById('productName').value,
-        category: document.getElementById('productCategory').value,
-        description: document.getElementById('productDesc').value,
-        price: document.getElementById('productPrice').value,
-        stock: document.getElementById('productStock').value
-    };
+    const formData = new FormData();
+    formData.append('action', currentEditingProduct ? 'update' : 'create');
+    formData.append('id', document.getElementById('productId').value);
+    formData.append('name', document.getElementById('productName').value);
+    formData.append('category', document.getElementById('productCategory').value);
+    formData.append('description', document.getElementById('productDesc').value);
+    formData.append('price', document.getElementById('productPrice').value);
+    formData.append('stock', document.getElementById('productStock').value);
+
+    const imageFile = document.getElementById('productImage').files[0];
+    if (imageFile) {
+        formData.append('image', imageFile);
+    }
 
     try {
         const response = await fetch('php/products.php', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(formData)
+            body: formData
         });
 
         const data = await response.json();
-        
+
         if (data.status === 'success') {
+            toast.success('Success', data.message);
             document.getElementById('productModal').classList.remove('active');
+            productForm.reset();
             loadProducts();
             loadDashboard();
+        } else {
+            toast.error('Error', data.message);
         }
     } catch (error) {
-        console.error('Error saving product:', error);
+        console.error('Error:', error);
+        toast.error('Error', 'An error occurred while saving the product');
     }
 }
 

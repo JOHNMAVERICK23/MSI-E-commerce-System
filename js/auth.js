@@ -1,5 +1,3 @@
-// File: js/auth.js
-// AUTHENTICATION - LOGIN & LOGOUT
 
 document.addEventListener('DOMContentLoaded', () => {
     const loginForm = document.getElementById('loginForm');
@@ -145,21 +143,13 @@ function isLoggedIn() {
 
 // Customer login function for modal
 async function handleQuickLogin(event) {
-    if (event) {
-        event.preventDefault();
-    }
+    if (event) event.preventDefault();
     
     const username = document.getElementById('loginUsername').value.trim();
     const password = document.getElementById('loginPassword').value.trim();
-    const messageDiv = document.getElementById('loginMessage');
-
-    console.log('Quick login attempt:', username);
 
     if (!username || !password) {
-        if (messageDiv) {
-            messageDiv.textContent = 'Please enter username and password';
-            messageDiv.className = 'login-message show error';
-        }
+        toast.error('Login Failed', 'Please enter username and password');
         return;
     }
 
@@ -168,45 +158,29 @@ async function handleQuickLogin(event) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                action: 'login_customer',
+                action: 'login',
                 username: username,
                 password: password
             })
         });
 
-        console.log('Response status:', response.status);
-
-        if (!response.ok) {
-            throw new Error('Network error: ' + response.status);
-        }
-
         const data = await response.json();
-        console.log('Login response:', data);
 
-        if (data.status === 'success') {
+        if (data.status === 'success' && data.user.role === 'customer') {
+            toast.success('Welcome Back!', 'Login successful');
+            
             localStorage.setItem('user', JSON.stringify(data.user));
             localStorage.setItem('token', data.token);
             
-            if (messageDiv) {
-                messageDiv.textContent = 'Login successful! Redirecting...';
-                messageDiv.className = 'login-message show success';
-            }
-            
             setTimeout(() => {
-                window.location.href = 'index.html';
+                window.location.reload();
             }, 1500);
         } else {
-            if (messageDiv) {
-                messageDiv.textContent = data.message || 'Login failed';
-                messageDiv.className = 'login-message show error';
-            }
+            toast.error('Login Failed', 'Invalid customer credentials');
         }
     } catch (error) {
         console.error('Login error:', error);
-        if (messageDiv) {
-            messageDiv.textContent = 'An error occurred: ' + error.message;
-            messageDiv.className = 'login-message show error';
-        }
+        toast.error('Login Error', 'An error occurred');
     }
 }
 

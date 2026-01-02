@@ -698,3 +698,83 @@
         min-width: unset;
     }
 }
+
+.registration-banner {
+    background: linear-gradient(135deg, 
+        rgba(255, 68, 68, 0.15) 0%, 
+        rgba(255, 136, 0, 0.15) 100%);
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    padding: 30px;
+    margin: 30px auto;
+    max-width: 800px;
+    text-align: center;
+}
+
+.registration-banner h2 {
+    color: var(--text-foreground);
+    margin-bottom: 10px;
+}
+
+.registration-banner p {
+    color: var(--text-foreground);
+    opacity: 0.8;
+    margin-bottom: 20px;
+}
+
+.banner-buttons {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.welcome-banner {
+    background: var(--bg-card);
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    padding: 30px;
+    margin: 30px auto;
+    max-width: 800px;
+    text-align: center;
+}
+
+.welcome-banner h2 {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* User Dropdown */
+.user-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.user-dropdown-content {
+    display: none;
+    position: absolute;
+    right: 0;
+    background: var(--bg-card);
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    min-width: 200px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    z-index: 100;
+}
+
+.user-dropdown:hover .user-dropdown-content {
+    display: flex;
+}
+
+.btn-login-small {
+    width: 100%;
+    padding: 8px 15px;
+    background: var(--gradient-primary);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}

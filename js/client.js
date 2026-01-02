@@ -83,7 +83,6 @@ function setupEventListeners() {
             }
         });
     });
-    // --- WAKAS NG INAYOS NA BAHAGI ---
 
     // Quantity buttons in modal
     const decreaseBtn = document.getElementById('decreaseQty');

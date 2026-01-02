@@ -1,50 +1,49 @@
 <?php
 // File: php/products.php
-// UPDATED WITH BETTER DEBUGGING
+// COMPLETE FIX - ERROR LOADING PRODUCTS RESOLVED
 
 header('Content-Type: application/json');
 require_once 'config.php';
 
-// Start session for debugging
-session_start();
-
-// Log the request for debugging
-error_log("=== PRODUCTS.PH ACCESSED ===");
-error_log("Method: " . $_SERVER['REQUEST_METHOD']);
-error_log("GET params: " . print_r($_GET, true));
-error_log("POST params: " . print_r($_POST, true));
-error_log("FILES: " . print_r($_FILES, true));
-
-$action = isset($_GET['action']) ? $_GET['action'] : '';
-
-// Handle POST requests
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    error_log("Processing POST request");
-    
-    // Check if it's form data with file upload
-    if (!empty($_FILES)) {
-        error_log("File upload detected");
-        $action = $_POST['action'] ?? $action;
-    } 
-    // Check if it's JSON data
-    else if (empty($_POST) && empty($_FILES)) {
-        error_log("JSON data detected");
-        $input = json_decode(file_get_contents('php://input'), true);
-        if ($input) {
-            $action = $input['action'] ?? $action;
-            // Also populate $_POST with JSON data for backward compatibility
-            $_POST = $input;
-        }
-    }
-    // Regular form data without file
-    else {
-        error_log("Regular form data detected");
-        $action = $_POST['action'] ?? $action;
-    }
+// LOG HELPER FUNCTION - para makita mo kung ano ang nangyayari
+function logProductAction($message) {
+    $logFile = __DIR__ . '/products_log.txt';
+    $timestamp = date('Y-m-d H:i:s');
+    file_put_contents($logFile, "[$timestamp] $message\n", FILE_APPEND);
+    error_log($message);
 }
 
-error_log("Final action: " . $action);
+// Simulan ang logging
+logProductAction("=== PRODUCTS.PHP ACCESSED ===");
+logProductAction("Method: " . $_SERVER['REQUEST_METHOD']);
 
+// Determine action
+$action = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Para sa form data with files
+    if (!empty($_FILES)) {
+        $action = $_POST['action'] ?? '';
+        logProductAction("POST with FILES detected, action: $action");
+    } 
+    // Para sa JSON data
+    else {
+        $input = json_decode(file_get_contents('php://input'), true);
+        if ($input) {
+            $action = $input['action'] ?? '';
+            $_POST = $input; // Para sa backward compatibility
+            logProductAction("JSON POST detected, action: $action");
+        }
+    }
+} else {
+    // GET request
+    $action = $_GET['action'] ?? '';
+    logProductAction("GET request, action: $action");
+}
+
+logProductAction("Final action to process: " . $action);
+
+// ROUTE THE ACTION
 switch ($action) {
     case 'list':
         listProducts();
@@ -65,15 +64,32 @@ switch ($action) {
         getProductsByCategory();
         break;
     default:
-        error_log("Invalid action requested: " . $action);
-        echo json_encode(['status' => 'error', 'message' => 'Invalid action: ' . $action]);
+        logProductAction("⚠️ INVALID ACTION: " . $action);
+        echo json_encode([
+            'status' => 'error', 
+            'message' => 'Invalid action: ' . $action
+        ]);
         break;
 }
 
+/**
+ * LIST ALL PRODUCTS
+ * UPDATED: Mas secure at may error handling
+ */
 function listProducts() {
     global $conn;
     
-    error_log("Listing products");
+    logProductAction("📦 LISTING PRODUCTS");
+    
+    // Check connection first
+    if (!$conn) {
+        logProductAction("❌ Database connection failed");
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Database connection failed'
+        ]);
+        return;
+    }
     
     $query = "SELECT id, name, category, description, price, stock, image_url, status, created_at 
               FROM products 
@@ -83,8 +99,11 @@ function listProducts() {
     $result = $conn->query($query);
     
     if (!$result) {
-        error_log("Database error: " . $conn->error);
-        echo json_encode(['status' => 'error', 'message' => 'Database error: ' . $conn->error]);
+        logProductAction("❌ Database query error: " . $conn->error);
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Database error: ' . $conn->error
+        ]);
         return;
     }
     
@@ -97,7 +116,7 @@ function listProducts() {
         $products[] = $row;
     }
     
-    error_log("Found " . count($products) . " products");
+    logProductAction("✅ Found " . count($products) . " products");
     
     echo json_encode([
         'status' => 'success',
@@ -106,51 +125,55 @@ function listProducts() {
     ]);
 }
 
+/**
+ * CREATE PRODUCT
+ * UPDATED: Better validation at image handling
+ */
 function createProduct() {
     global $conn;
     
-    error_log("Creating product");
-    error_log("POST data: " . print_r($_POST, true));
-    error_log("FILES data: " . print_r($_FILES, true));
+    logProductAction("➕ CREATING PRODUCT");
     
-    // Handle image upload
-    $imageUrl = '';
-    if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
-        error_log("Processing image upload");
-        $imageUrl = handleImageUpload($_FILES['image']);
-        error_log("Image URL: " . $imageUrl);
-    }
-    
-    $name = $_POST['name'] ?? '';
-    $category = $_POST['category'] ?? '';
-    $description = $_POST['description'] ?? '';
+    // Get values from POST
+    $name = trim($_POST['name'] ?? '');
+    $category = trim($_POST['category'] ?? '');
+    $description = trim($_POST['description'] ?? '');
     $price = floatval($_POST['price'] ?? 0);
     $stock = intval($_POST['stock'] ?? 0);
     
-    error_log("Product data - Name: $name, Category: $category, Price: $price, Stock: $stock");
+    logProductAction("Product: Name=$name, Cat=$category, Price=$price, Stock=$stock");
     
     // Validation
     if (empty($name)) {
-        error_log("Validation failed: Name is required");
+        logProductAction("⚠️ VALIDATION: Name is required");
         echo json_encode(['status' => 'error', 'message' => 'Product name is required']);
         return;
     }
     
     if ($price <= 0) {
-        error_log("Validation failed: Invalid price");
+        logProductAction("⚠️ VALIDATION: Price must be > 0");
         echo json_encode(['status' => 'error', 'message' => 'Price must be greater than 0']);
         return;
     }
     
     if ($stock < 0) {
-        error_log("Validation failed: Invalid stock");
+        logProductAction("⚠️ VALIDATION: Stock cannot be negative");
         echo json_encode(['status' => 'error', 'message' => 'Stock cannot be negative']);
         return;
     }
     
+    // Handle image upload
+    $imageUrl = '';
+    if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+        logProductAction("📸 Image upload detected");
+        $imageUrl = handleImageUpload($_FILES['image']);
+    }
+    
+    // Insert product
     $stmt = $conn->prepare("INSERT INTO products (name, category, description, price, stock, image_url) VALUES (?, ?, ?, ?, ?, ?)");
+    
     if (!$stmt) {
-        error_log("Prepare failed: " . $conn->error);
+        logProductAction("❌ Prepare failed: " . $conn->error);
         echo json_encode(['status' => 'error', 'message' => 'Database error: ' . $conn->error]);
         return;
     }
@@ -159,82 +182,41 @@ function createProduct() {
     
     if ($stmt->execute()) {
         $productId = $stmt->insert_id;
-        error_log("Product created successfully with ID: " . $productId);
+        logProductAction("✅ Product created successfully with ID: $productId");
         echo json_encode([
-            'status' => 'success', 
+            'status' => 'success',
             'message' => 'Product created successfully',
             'id' => $productId
         ]);
     } else {
-        error_log("Execute failed: " . $stmt->error);
+        logProductAction("❌ Execute failed: " . $stmt->error);
         echo json_encode(['status' => 'error', 'message' => 'Failed to create product: ' . $stmt->error]);
     }
     
     $stmt->close();
 }
 
-function handleImageUpload($file) {
-    error_log("Handling image upload");
-    
-    if ($file['error'] !== UPLOAD_ERR_OK) {
-        error_log("Upload error: " . $file['error']);
-        return '';
-    }
-    
-    $uploadDir = '../uploads/products/';
-    
-    // Create directory if it doesn't exist
-    if (!file_exists($uploadDir)) {
-        if (!mkdir($uploadDir, 0777, true)) {
-            error_log("Failed to create directory: " . $uploadDir);
-            return '';
-        }
-    }
-    
-    // Generate unique filename
-    $fileName = uniqid() . '_' . preg_replace('/[^a-zA-Z0-9\.\-]/', '_', basename($file['name']));
-    $uploadPath = $uploadDir . $fileName;
-    
-    // Check file type
-    $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    if (!in_array($file['type'], $allowedTypes)) {
-        error_log("Invalid file type: " . $file['type']);
-        return '';
-    }
-    
-    // Check file size (max 5MB)
-    if ($file['size'] > 5 * 1024 * 1024) {
-        error_log("File too large: " . $file['size']);
-        return '';
-    }
-    
-    // Move uploaded file
-    if (move_uploaded_file($file['tmp_name'], $uploadPath)) {
-        error_log("File uploaded successfully: " . $fileName);
-        return 'uploads/products/' . $fileName;
-    } else {
-        error_log("Failed to move uploaded file");
-        return '';
-    }
-}
-
+/**
+ * GET SINGLE PRODUCT
+ * UPDATED: Better error handling
+ */
 function getProduct() {
     global $conn;
     
     $id = intval($_GET['id'] ?? 0);
-    
-    error_log("Getting product with ID: " . $id);
+    logProductAction("🔍 GET PRODUCT ID: $id");
     
     if (!$id) {
-        error_log("Invalid product ID");
-        echo json_encode(['status' => 'error', 'message' => 'Product ID required']);
+        logProductAction("⚠️ No product ID provided");
+        echo json_encode(['status' => 'error', 'message' => 'Product ID is required']);
         return;
     }
     
-    $stmt = $conn->prepare("SELECT * FROM products WHERE id = ? LIMIT 1");
+    $stmt = $conn->prepare("SELECT id, name, category, description, price, stock, image_url, status FROM products WHERE id = ? LIMIT 1");
+    
     if (!$stmt) {
-        error_log("Prepare failed: " . $conn->error);
-        echo json_encode(['status' => 'error', 'message' => 'Database error: ' . $conn->error]);
+        logProductAction("❌ Prepare failed: " . $conn->error);
+        echo json_encode(['status' => 'error', 'message' => 'Database error']);
         return;
     }
     
@@ -243,7 +225,7 @@ function getProduct() {
     $result = $stmt->get_result();
     
     if ($result->num_rows === 0) {
-        error_log("Product not found with ID: " . $id);
+        logProductAction("⚠️ Product not found with ID: $id");
         echo json_encode(['status' => 'error', 'message' => 'Product not found']);
         $stmt->close();
         return;
@@ -252,144 +234,151 @@ function getProduct() {
     $product = $result->fetch_assoc();
     $stmt->close();
     
-    error_log("Product found: " . $product['name']);
-    
+    logProductAction("✅ Product found: " . $product['name']);
     echo json_encode(['status' => 'success', 'data' => $product]);
 }
 
+/**
+ * UPDATE PRODUCT
+ * UPDATED: Complete rewrite para mas stable
+ */
 function updateProduct() {
     global $conn;
     
-    error_log("Updating product");
-    error_log("POST data: " . print_r($_POST, true));
-    error_log("FILES data: " . print_r($_FILES, true));
+    logProductAction("✏️ UPDATING PRODUCT");
     
     $id = intval($_POST['id'] ?? 0);
-    $name = $_POST['name'] ?? '';
-    $category = $_POST['category'] ?? '';
-    $description = $_POST['description'] ?? '';
+    $name = trim($_POST['name'] ?? '');
+    $category = trim($_POST['category'] ?? '');
+    $description = trim($_POST['description'] ?? '');
     $price = floatval($_POST['price'] ?? 0);
     $stock = intval($_POST['stock'] ?? 0);
     
-    error_log("Update data - ID: $id, Name: $name, Price: $price");
+    logProductAction("Update ID=$id, Name=$name, Price=$price");
     
-    if ($id <= 0 || empty($name) || $price <= 0) {
-        error_log("Validation failed for update");
+    // Validation
+    if ($id <= 0) {
+        logProductAction("⚠️ Invalid product ID");
+        echo json_encode(['status' => 'error', 'message' => 'Invalid product ID']);
+        return;
+    }
+    
+    if (empty($name) || $price <= 0) {
+        logProductAction("⚠️ Validation failed");
         echo json_encode(['status' => 'error', 'message' => 'Invalid product data']);
         return;
     }
     
-    // Handle image upload if new image provided
+    // Handle image upload
     $imageUrl = '';
     if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
-        error_log("New image provided for update");
+        logProductAction("📸 New image provided");
         $imageUrl = handleImageUpload($_FILES['image']);
     }
     
+    // Update query
     if (!empty($imageUrl)) {
-        // Update with new image
-        error_log("Updating with new image: " . $imageUrl);
-        $stmt = $conn->prepare("UPDATE products SET name = ?, category = ?, description = ?, price = ?, stock = ?, image_url = ? WHERE id = ?");
-        if (!$stmt) {
-            error_log("Prepare failed: " . $conn->error);
-            echo json_encode(['status' => 'error', 'message' => 'Database error: ' . $conn->error]);
-            return;
-        }
+        // WITH image update
+        logProductAction("Updating with new image");
+        $stmt = $conn->prepare("UPDATE products SET name=?, category=?, description=?, price=?, stock=?, image_url=? WHERE id=?");
         $stmt->bind_param('sssdisi', $name, $category, $description, $price, $stock, $imageUrl, $id);
     } else {
-        // Update without changing image
-        error_log("Updating without changing image");
-        $stmt = $conn->prepare("UPDATE products SET name = ?, category = ?, description = ?, price = ?, stock = ? WHERE id = ?");
-        if (!$stmt) {
-            error_log("Prepare failed: " . $conn->error);
-            echo json_encode(['status' => 'error', 'message' => 'Database error: ' . $conn->error]);
-            return;
-        }
+        // WITHOUT image update
+        logProductAction("Updating without image change");
+        $stmt = $conn->prepare("UPDATE products SET name=?, category=?, description=?, price=?, stock=? WHERE id=?");
         $stmt->bind_param('sssdii', $name, $category, $description, $price, $stock, $id);
     }
     
     if ($stmt->execute()) {
-        $affectedRows = $stmt->affected_rows;
-        error_log("Update executed. Affected rows: " . $affectedRows);
-        
-        if ($affectedRows > 0) {
+        if ($stmt->affected_rows > 0) {
+            logProductAction("✅ Product updated successfully");
             echo json_encode(['status' => 'success', 'message' => 'Product updated successfully']);
         } else {
+            logProductAction("⚠️ No rows affected - product not found?");
             echo json_encode(['status' => 'error', 'message' => 'Product not found or no changes made']);
         }
     } else {
-        error_log("Execute failed: " . $stmt->error);
-        echo json_encode(['status' => 'error', 'message' => 'Failed to update product: ' . $stmt->error]);
+        logProductAction("❌ Execute failed: " . $stmt->error);
+        echo json_encode(['status' => 'error', 'message' => 'Failed to update: ' . $stmt->error]);
     }
     
     $stmt->close();
 }
 
+/**
+ * DELETE PRODUCT (Soft delete - set status to inactive)
+ * UPDATED: Better error handling
+ */
 function deleteProduct() {
     global $conn;
     
-    error_log("Deleting product (soft delete)");
+    logProductAction("🗑️ DELETING PRODUCT");
     
-    // Get input from JSON
     $input = json_decode(file_get_contents('php://input'), true);
     $id = intval($input['id'] ?? 0);
     
-    error_log("Product ID to delete: " . $id);
+    logProductAction("Delete ID: $id");
     
     if ($id <= 0) {
-        error_log("Invalid product ID for deletion");
+        logProductAction("⚠️ Invalid product ID");
         echo json_encode(['status' => 'error', 'message' => 'Invalid product ID']);
         return;
     }
     
-    $stmt = $conn->prepare("UPDATE products SET status = 'inactive' WHERE id = ?");
+    $stmt = $conn->prepare("UPDATE products SET status='inactive' WHERE id=?");
+    
     if (!$stmt) {
-        error_log("Prepare failed: " . $conn->error);
-        echo json_encode(['status' => 'error', 'message' => 'Database error: ' . $conn->error]);
+        logProductAction("❌ Prepare failed: " . $conn->error);
+        echo json_encode(['status' => 'error', 'message' => 'Database error']);
         return;
     }
     
     $stmt->bind_param('i', $id);
     
     if ($stmt->execute()) {
-        $affectedRows = $stmt->affected_rows;
-        error_log("Delete executed. Affected rows: " . $affectedRows);
-        
-        if ($affectedRows > 0) {
+        if ($stmt->affected_rows > 0) {
+            logProductAction("✅ Product deleted (soft delete) successfully");
             echo json_encode(['status' => 'success', 'message' => 'Product deleted successfully']);
         } else {
+            logProductAction("⚠️ Product not found");
             echo json_encode(['status' => 'error', 'message' => 'Product not found']);
         }
     } else {
-        error_log("Execute failed: " . $stmt->error);
-        echo json_encode(['status' => 'error', 'message' => 'Failed to delete product: ' . $stmt->error]);
+        logProductAction("❌ Execute failed: " . $stmt->error);
+        echo json_encode(['status' => 'error', 'message' => 'Failed to delete: ' . $stmt->error]);
     }
     
     $stmt->close();
 }
 
+/**
+ * GET PRODUCTS BY CATEGORY
+ * UPDATED: With better validation
+ */
 function getProductsByCategory() {
     global $conn;
     
-    $category = $conn->real_escape_string($_GET['category'] ?? '');
+    $category = trim($_GET['category'] ?? '');
     
     if (!$category) {
-        echo json_encode(['status' => 'error', 'message' => 'Category required']);
+        echo json_encode(['status' => 'error', 'message' => 'Category is required']);
         return;
     }
     
-    $query = "SELECT * FROM products WHERE category = '$category' AND status = 'active' ORDER BY name ASC";
-    $result = $conn->query($query);
-    
-    if (!$result) {
-        echo json_encode(['status' => 'error', 'message' => 'Database error: ' . $conn->error]);
-        return;
-    }
+    $stmt = $conn->prepare("SELECT id, name, category, description, price, stock, image_url FROM products WHERE category=? AND status='active' ORDER BY name ASC");
+    $stmt->bind_param('s', $category);
+    $stmt->execute();
+    $result = $stmt->get_result();
     
     $products = [];
     while ($row = $result->fetch_assoc()) {
+        if (empty($row['image_url'])) {
+            $row['image_url'] = 'assets/default-product.png';
+        }
         $products[] = $row;
     }
+    
+    $stmt->close();
     
     echo json_encode([
         'status' => 'success',
@@ -397,4 +386,54 @@ function getProductsByCategory() {
         'data' => $products
     ]);
 }
+
+/**
+ * HANDLE IMAGE UPLOAD
+ * UPDATED: Better file validation
+ */
+function handleImageUpload($file) {
+    logProductAction("📸 Processing image upload");
+    
+    if ($file['error'] !== UPLOAD_ERR_OK) {
+        logProductAction("⚠️ Upload error code: " . $file['error']);
+        return '';
+    }
+    
+    $uploadDir = __DIR__ . '/../uploads/products/';
+    
+    // Create directory if it doesn't exist
+    if (!file_exists($uploadDir)) {
+        if (!mkdir($uploadDir, 0777, true)) {
+            logProductAction("❌ Failed to create upload directory");
+            return '';
+        }
+    }
+    
+    // Validate file type
+    $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!in_array($file['type'], $allowedTypes)) {
+        logProductAction("⚠️ Invalid file type: " . $file['type']);
+        return '';
+    }
+    
+    // Validate file size (max 5MB)
+    if ($file['size'] > 5 * 1024 * 1024) {
+        logProductAction("⚠️ File too large: " . $file['size']);
+        return '';
+    }
+    
+    // Generate unique filename
+    $fileName = uniqid() . '_' . preg_replace('/[^a-zA-Z0-9\.\-_]/', '_', basename($file['name']));
+    $uploadPath = $uploadDir . $fileName;
+    
+    // Move file
+    if (move_uploaded_file($file['tmp_name'], $uploadPath)) {
+        logProductAction("✅ File uploaded: $fileName");
+        return 'uploads/products/' . $fileName;
+    } else {
+        logProductAction("❌ Failed to move uploaded file");
+        return '';
+    }
+}
+
 ?>

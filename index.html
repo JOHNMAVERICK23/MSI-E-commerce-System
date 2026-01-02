@@ -137,10 +137,74 @@
         </div>
     </div>
 
+    <div id="productModal" class="modal">
+        <div class="modal-content">
+            <button class="close-modal">&times;</button>
+            <div class="detail-grid">
+                <div class="detail-image">
+                    <i class="fas fa-box"></i>
+                </div>
+                <div class="detail-info">
+                    <h2 id="detailName">Product Name</h2>
+                    <p class="detail-category" id="detailCategory">Category</p>
+                    <p class="detail-description" id="detailDescription">Description</p>
+                    
+                    <div class="detail-specs">
+                        <div class="spec">
+                            <span>Price:</span>
+                            <span class="price" id="detailPrice">$0.00</span>
+                        </div>
+                        <div class="spec">
+                            <span>Stock:</span>
+                            <span id="detailStock">0 available</span>
+                        </div>
+                    </div>
+    
+                    <div class="quantity-selector">
+                        <button class="qty-btn" id="decreaseQty">-</button>
+                        <input type="number" id="quantityInput" value="1" min="1" max="100">
+                        <button class="qty-btn" id="increaseQty">+</button>
+                    </div>
+    
+                    <button class="btn-add-to-cart" id="addToCartBtn">
+                        <i class="fas fa-shopping-cart"></i> Add to Cart
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- OVERLAY FOR MODALS -->
+    <div id="overlay" class="overlay"></div>
+    
+    <!-- CART SIDEBAR -->
+    <div id="cartSidebar" class="cart-sidebar">
+        <div class="cart-header">
+            <h3>Shopping Cart</h3>
+            <button class="close-cart" id="closeCartBtn">&times;</button>
+        </div>
+        <div class="cart-items" id="cartItems">
+            <p class="empty-cart">Your cart is empty</p>
+        </div>
+        <div class="cart-footer">
+            <div class="cart-total">
+                <span>Total:</span>
+                <span id="cartTotal">$0.00</span>
+            </div>
+            <button class="btn-checkout" id="checkoutBtn">
+                <i class="fas fa-credit-card"></i> Checkout
+            </button>
+            <button class="btn-continue" id="continueShopping">
+                <i class="fas fa-arrow-left"></i> Continue Shopping
+            </button>
+        </div>
+    </div>
+
     <!-- Include Scripts -->
     <script src="js/toast.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/client.js"></script>
+    <script src="js/toast.js"></script>
     
     <script>
     // Registration/Login logic for index.html

@@ -1,5 +1,5 @@
 // File: js/client.js
-// CLIENT PRODUCT PAGE - COMPLETE FUNCTIONALITY
+// COMPLETE FIX - Modal auto-close, user role redirect, at lahat ng issues
 
 let cart = [];
 let allProducts = [];
@@ -8,12 +8,21 @@ let selectedProductId = null;
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Client page loaded');
     
-    // Check if logged in
+    // Check if logged in (but DON'T redirect based on role - allow customers and guests)
     const user = getUser();
-    if (user && user.role !== 'customer') {
-        if (user.role === 'admin') window.location.href = 'admin.html';
-        if (user.role === 'staff') window.location.href = 'staff.html';
+    
+    // FIXED: Only redirect admins and staff, allow customers
+    if (user && user.role === 'admin') {
+        console.log('Admin detected, redirecting to admin.html');
+        window.location.href = 'admin.html';
+        return;
     }
+    if (user && user.role === 'staff') {
+        console.log('Staff detected, redirecting to staff.html');
+        window.location.href = 'staff.html';
+        return;
+    }
+    // Customers at guests allowed to stay on index.html
 
     // Load cart from storage
     loadCartFromStorage();
@@ -30,53 +39,61 @@ document.addEventListener('DOMContentLoaded', () => {
 function setupEventListeners() {
     console.log('Setting up event listeners...');
     
-    // Cart button
+    // ============================================
+    // CART SIDEBAR
+    // ============================================
     const cartBtn = document.getElementById('cartBtn');
     if (cartBtn) cartBtn.addEventListener('click', toggleCart);
     
-    const closeCart = document.getElementById('closeCart');
+    const closeCart = document.querySelector('[onclick="closeCart()"]');
     if (closeCart) closeCart.addEventListener('click', () => toggleCart());
     
     const continueShopping = document.getElementById('continueShopping');
     if (continueShopping) continueShopping.addEventListener('click', () => toggleCart());
 
-    // User button
+    // ============================================
+    // USER MENU
+    // ============================================
     const userBtn = document.getElementById('userBtn');
     if (userBtn) userBtn.addEventListener('click', toggleUserMenu);
 
-    // Logout
     const logoutLink = document.getElementById('logoutLink');
     if (logoutLink) logoutLink.addEventListener('click', (e) => {
         e.preventDefault();
         logout();
     });
 
-    // Overlay click
+    // ============================================
+    // OVERLAY CLICK
+    // ============================================
     const overlay = document.getElementById('overlay');
     if (overlay) overlay.addEventListener('click', closeAllModals);
 
-    // Search and filter
+    // ============================================
+    // SEARCH & FILTER
+    // ============================================
     const searchInput = document.getElementById('searchInput');
     if (searchInput) searchInput.addEventListener('input', filterProducts);
     
     const categoryFilter = document.getElementById('categoryFilter');
     if (categoryFilter) categoryFilter.addEventListener('change', filterProducts);
 
-    // Checkout
+    // ============================================
+    // CHECKOUT
+    // ============================================
     const checkoutBtn = document.getElementById('checkoutBtn');
     if (checkoutBtn) checkoutBtn.addEventListener('click', goToCheckout);
 
-    // --- ITO ANG INAYOS NA BAHAGI ---
-    // Ngayon, pinapakinggan na nito ang LAHAT ng close buttons
+    // ============================================
+    // CLOSE MODAL BUTTONS (X)
+    // ============================================
     const allCloseButtons = document.querySelectorAll('.close-modal');
     allCloseButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            // Isara ang pinakamalapit na modal na parent ng button
+        button.addEventListener('click', (e) => {
             const modalToClose = button.closest('.modal');
             if (modalToClose) {
                 modalToClose.classList.remove('active');
             }
-            // Isara din ang overlay
             const overlay = document.getElementById('overlay');
             if (overlay) {
                 overlay.classList.remove('active');
@@ -84,21 +101,34 @@ function setupEventListeners() {
         });
     });
 
-    // Quantity buttons in modal
+    // ============================================
+    // CLICK OUTSIDE MODAL TO CLOSE
+    // ============================================
+    document.querySelectorAll('.modal').forEach(modal => {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.remove('active');
+                const overlay = document.getElementById('overlay');
+                if (overlay) overlay.classList.remove('active');
+            }
+        });
+    });
+
+    // ============================================
+    // QUANTITY BUTTONS
+    // ============================================
     const decreaseBtn = document.getElementById('decreaseQty');
     if (decreaseBtn) decreaseBtn.addEventListener('click', decreaseQuantity);
     
     const increaseBtn = document.getElementById('increaseQty');
     if (increaseBtn) increaseBtn.addEventListener('click', increaseQuantity);
 
-    // Add to cart button
-    //const addToCartBtn = document.getElementById('addToCartBtn');
-   // if (addToCartBtn) addToCartBtn.addEventListener('click', addToCartFromModal);
-   // Idagdag ito sa dulo ng setupEventListeners
-console.log('Event listeners ay naka-setup na');
-console.log('Bilang ng produkto:', allProducts.length);
-console.log('Bilang ng nasa cart:', cart.length);
+    console.log('Event listeners setup complete');
 }
+
+// ============================================
+// PRODUCTS FUNCTIONS
+// ============================================
 
 async function loadProducts() {
     console.log('Loading products...');
@@ -115,6 +145,10 @@ async function loadProducts() {
         }
     } catch (error) {
         console.error('Error loading products:', error);
+        const productsList = document.getElementById('productsList');
+        if (productsList) {
+            productsList.innerHTML = '<p class="loading error">Error loading products</p>';
+        }
     }
 }
 
@@ -166,61 +200,83 @@ function filterProducts() {
     displayProducts(filtered);
 }
 
+// ============================================
+// PRODUCT DETAIL MODAL
+// ============================================
+
 function openProductDetail(productId) {
-    console.log('Binubukas ang product detail para sa ID:', productId);
+    console.log('Opening product detail for ID:', productId);
     
     const product = allProducts.find(p => p.id == productId);
     
     if (!product) {
-        console.error('Hindi mahanap ang produkto na may ID:', productId);
-        alert('Hindi mahanap ang produkto');
+        console.error('Product not found with ID:', productId);
+        showNotification('Product not found', 'error');
         return false;
     }
 
-    selectedProductId = productId; // Itago ang ID ng napiling produkto
+    selectedProductId = productId;
 
-    // Ipunin ang product info sa modal
+    // Update modal content
     document.getElementById('detailName').textContent = product.name;
     document.getElementById('detailCategory').textContent = product.category;
     document.getElementById('detailDescription').textContent = product.description || 'Premium gaming component';
     document.getElementById('detailPrice').textContent = '$' + parseFloat(product.price).toFixed(2);
-    document.getElementById('detailStock').textContent = product.stock + ' ang available';
+    document.getElementById('detailStock').textContent = product.stock + ' available';
     
     const quantityInput = document.getElementById('quantityInput');
-    quantityInput.value = 1;
-    quantityInput.max = product.stock;
+    if (quantityInput) {
+        quantityInput.value = 1;
+        quantityInput.max = product.stock;
+    }
 
-    // INAYOS DITO: Siguraduhin na naka-attach ang tamang click event sa button
+    // Add to cart button - FIXED para hindi mag-double
     const addToCartBtn = document.getElementById('addToCartBtn');
-    
-    // Alisin muna ang lumang event listener
-    const newBtn = addToCartBtn.cloneNode(true);
-    addToCartBtn.parentNode.replaceChild(newBtn, addToCartBtn);
-    
-    // I-attach ang bagong event listener na may product ID
-    document.getElementById('addToCartBtn').onclick = function() {
-        const quantity = parseInt(document.getElementById('quantityInput').value);
+    if (addToCartBtn) {
+        // Clone at replace para sa clean event handling
+        const newBtn = addToCartBtn.cloneNode(true);
+        addToCartBtn.parentNode.replaceChild(newBtn, addToCartBtn);
         
-        if (product.stock < quantity) {
-            showNotification('Kulang ang stock! Available lang: ' + product.stock, 'error');
-            return;
-        }
-        
-        addToCart(product, quantity);
-        closeProductModal();
-        showNotification('Idinagdag sa cart!', 'success');
-    };
+        // Attach event
+        newBtn.onclick = function() {
+            const quantity = parseInt(document.getElementById('quantityInput').value);
+            
+            if (product.stock < quantity) {
+                showNotification('Not enough stock! Available: ' + product.stock, 'error');
+                return;
+            }
+            
+            addToCart(product, quantity);
+            closeProductModal();
+            showNotification('Added to cart!', 'success');
+        };
+    }
 
-    // Ipakita ang modal
-    document.getElementById('productModal').classList.add('active');
-    document.getElementById('overlay').classList.add('active');
+    // Show modal
+    const productModal = document.getElementById('productModal');
+    const overlay = document.getElementById('overlay');
     
-    console.log('Product modal ay nabuksan na');
+    if (productModal) productModal.classList.add('active');
+    if (overlay) overlay.classList.add('active');
+    
+    console.log('Product modal opened');
     return false;
+}
+
+function closeProductModal() {
+    const productModal = document.getElementById('productModal');
+    const overlay = document.getElementById('overlay');
+    
+    if (productModal) productModal.classList.remove('active');
+    if (overlay) overlay.classList.remove('active');
+    
+    selectedProductId = null;
 }
 
 function increaseQuantity() {
     const input = document.getElementById('quantityInput');
+    if (!input) return;
+    
     const max = parseInt(input.max);
     if (parseInt(input.value) < max) {
         input.value = parseInt(input.value) + 1;
@@ -229,32 +285,17 @@ function increaseQuantity() {
 
 function decreaseQuantity() {
     const input = document.getElementById('quantityInput');
+    if (!input) return;
+    
     if (parseInt(input.value) > 1) {
         input.value = parseInt(input.value) - 1;
     }
 }
 
-function addToCartFromModal() {
-    const quantity = parseInt(document.getElementById('quantityInput').value);
-    
-    // Siguraduhin na may napiling produkto
-    if (!selectedProductId) {
-        showNotification('Walang napiling produkto.', 'error');
-        return;
-    }
-    
-    // INAYOS DITO: Gumamit din ng == para consistent
-    const product = allProducts.find(p => p.id == selectedProductId);
+// ============================================
+// CART FUNCTIONS
+// ============================================
 
-    if (product) {
-        addToCart(product, quantity);
-        closeProductModal();
-        showNotification('Added to cart!', 'success');
-    } else {
-        console.error('Produkto na may ID na', selectedProductId, 'ay hindi mahanap.');
-        showNotification('Hindi ma-add sa cart ang produkto.', 'error');
-    }
-}
 function addToCart(product, quantity) {
     console.log('Adding to cart:', product.name, 'Qty:', quantity);
     const existingItem = cart.find(item => item.id === product.id);
@@ -346,17 +387,17 @@ function toggleCart() {
 }
 
 function toggleUserMenu() {
-    const userMenu = document.getElementById('userMenu');
-    if (userMenu) userMenu.classList.toggle('active');
+    const userDropdown = document.querySelector('.user-dropdown-content');
+    if (userDropdown) userDropdown.classList.toggle('active');
 }
 
 function closeAllModals() {
     const cartSidebar = document.getElementById('cartSidebar');
-    const userMenu = document.getElementById('userMenu');
+    const productModal = document.getElementById('productModal');
     const overlay = document.getElementById('overlay');
     
     if (cartSidebar) cartSidebar.classList.remove('active');
-    if (userMenu) userMenu.classList.remove('active');
+    if (productModal) productModal.classList.remove('active');
     if (overlay) overlay.classList.remove('active');
 }
 
@@ -367,8 +408,13 @@ function saveCartToStorage() {
 function loadCartFromStorage() {
     const stored = localStorage.getItem('cart');
     if (stored) {
-        cart = JSON.parse(stored);
-        updateCartUI();
+        try {
+            cart = JSON.parse(stored);
+            updateCartUI();
+        } catch (error) {
+            console.error('Error parsing cart:', error);
+            cart = [];
+        }
     }
 }
 
@@ -378,8 +424,11 @@ function goToCheckout() {
     if (!user || user.role !== 'customer') {
         showNotification('Please login as customer to checkout', 'error');
         setTimeout(() => {
-            window.location.href = 'login.html';
-        }, 1500);
+            const loginModal = document.getElementById('loginModal');
+            const overlay = document.getElementById('overlay');
+            if (loginModal) loginModal.classList.add('active');
+            if (overlay) overlay.classList.add('active');
+        }, 500);
         return;
     }
     
@@ -387,8 +436,13 @@ function goToCheckout() {
         showNotification('Cart is empty!', 'error');
         return;
     }
+    
     window.location.href = 'checkout.html';
 }
+
+// ============================================
+// UTILITY FUNCTIONS
+// ============================================
 
 function showNotification(message, type = 'success') {
     const notification = document.createElement('div');
@@ -429,8 +483,12 @@ function logout() {
     window.location.href = 'login.html';
 }
 
-function closeProductModal() {
-    document.getElementById('productModal').classList.remove('active');
-    document.getElementById('overlay').classList.remove('active');
-    selectedProductId = null;
-}
+// Export global functions
+window.openProductDetail = openProductDetail;
+window.closeProductModal = closeProductModal;
+window.increaseQuantity = increaseQuantity;
+window.decreaseQuantity = decreaseQuantity;
+window.removeFromCart = removeFromCart;
+window.updateCartItemQuantity = updateCartItemQuantity;
+window.goToCheckout = goToCheckout;
+window.toggleCart = toggleCart;

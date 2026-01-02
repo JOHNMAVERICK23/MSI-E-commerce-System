@@ -1,4 +1,5 @@
 // File: js/admin.js
+// UPDATED - Auto reload pagkatapos ng delete/update operations
 
 let salesChart, orderStatusChart;
 let currentEditingProduct = null;
@@ -63,12 +64,15 @@ function setupNavigation() {
 function setupModals() {
     console.log('Setting up modals...');
     
-    // Product Modal
+    // ============================================
+    // PRODUCT MODAL SETUP
+    // ============================================
     const productModal = document.getElementById('productModal');
     const productForm = document.getElementById('productForm');
     const addProductBtn = document.getElementById('addProductBtn');
     const cancelProductBtn = document.getElementById('cancelProductBtn');
 
+    // ADD PRODUCT BUTTON
     if (addProductBtn) {
         console.log('Add product button found');
         addProductBtn.addEventListener('click', () => {
@@ -80,21 +84,23 @@ function setupModals() {
                 console.log('Product modal opened');
             }
         });
-    } else {
-        console.error('Add product button not found!');
     }
 
+    // CANCEL PRODUCT BUTTON
     if (cancelProductBtn && productModal) {
         cancelProductBtn.addEventListener('click', () => {
-            productModal.classList.remove('active');
+            closeProductModal();
         });
     }
 
+    // PRODUCT FORM SUBMIT
     if (productForm) {
         productForm.addEventListener('submit', handleProductSubmit);
     }
 
-    // Staff Modal
+    // ============================================
+    // STAFF MODAL SETUP
+    // ============================================
     const staffModal = document.getElementById('staffModal');
     const staffForm = document.getElementById('staffForm');
     const addStaffBtn = document.getElementById('addStaffBtn');
@@ -117,15 +123,21 @@ function setupModals() {
         staffForm.addEventListener('submit', handleStaffSubmit);
     }
 
-    // Close modals on background click
+    // ============================================
+    // CLOSE BUTTONS (X button sa modals)
+    // ============================================
     document.querySelectorAll('.close-modal').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const modal = e.target.closest('.modal');
-            if (modal) modal.classList.remove('active');
+            if (modal) {
+                modal.classList.remove('active');
+            }
         });
     });
     
-    // Close modal when clicking outside
+    // ============================================
+    // CLICK OUTSIDE MODAL TO CLOSE
+    // ============================================
     document.querySelectorAll('.modal').forEach(modal => {
         modal.addEventListener('click', (e) => {
             if (e.target === modal) {
@@ -135,6 +147,80 @@ function setupModals() {
     });
 }
 
+// ============================================
+// PRODUCT MODAL FUNCTIONS
+// ============================================
+
+function closeProductModal() {
+    const productModal = document.getElementById('productModal');
+    if (productModal) {
+        productModal.classList.remove('active');
+    }
+    const productForm = document.getElementById('productForm');
+    if (productForm) {
+        productForm.reset();
+    }
+    currentEditingProduct = null;
+}
+
+async function handleProductSubmit(e) {
+    e.preventDefault();
+    console.log('Product form submitted');
+
+    // DISABLE BUTTON TO PREVENT DOUBLE SUBMIT
+    const submitBtn = this.querySelector('button[type="submit"]');
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Saving...';
+    }
+
+    const formData = new FormData();
+    formData.append('action', currentEditingProduct ? 'update' : 'create');
+    formData.append('id', document.getElementById('productId').value || '');
+    formData.append('name', document.getElementById('productName').value);
+    formData.append('category', document.getElementById('productCategory').value);
+    formData.append('description', document.getElementById('productDesc').value);
+    formData.append('price', document.getElementById('productPrice').value);
+    formData.append('stock', document.getElementById('productStock').value);
+
+    // Handle image upload
+    const imageInput = document.getElementById('productImage');
+    if (imageInput && imageInput.files[0]) {
+        formData.append('image', imageInput.files[0]);
+    }
+
+    try {
+        const response = await fetch('php/products.php', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+        console.log('Product save response:', data);
+
+        if (data.status === 'success') {
+            toast.success('Success', data.message || 'Product saved successfully');
+            
+            // CLOSE MODAL AUTOMATICALLY at RELOAD
+            setTimeout(() => {
+                closeProductModal();
+                loadProducts(); // AUTO RELOAD PRODUCTS
+                loadDashboard(); // AUTO RELOAD DASHBOARD
+            }, 500);
+        } else {
+            toast.error('Error', data.message || 'Failed to save product');
+        }
+    } catch (error) {
+        console.error('Error saving product:', error);
+        toast.error('Error', 'An error occurred while saving the product');
+    } finally {
+        // RE-ENABLE BUTTON
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = currentEditingProduct ? 'Update Product' : 'Save Product';
+        }
+    }
+}
 
 async function loadDashboard() {
     try {
@@ -171,61 +257,159 @@ function updateElementText(id, text) {
 }
 
 function createCharts(stats) {
-    // Sales Chart
+    console.log('Creating charts with data:', stats);
+    
+    // ============================================
+    // SALES CHART - REAL DATA
+    // ============================================
     const salesCtx = document.getElementById('salesChart');
     if (salesCtx) {
         if (salesChart) salesChart.destroy();
         
-        salesChart = new Chart(salesCtx.getContext('2d'), {
-            type: 'line',
-            data: {
-                labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-                datasets: [{
-                    label: 'Sales',
-                    data: [1200, 1900, 3000, 2500, 2200, 2900, 3200],
-                    borderColor: 'hsl(0 85% 55%)',
-                    backgroundColor: 'rgba(255, 68, 68, 0.1)',
-                    borderWidth: 2,
-                    fill: true,
-                    tension: 0.4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false
-            }
-        });
+        // Get real sales data from stats
+        const salesData = stats.salesData || { labels: [], revenues: [] };
+        
+        // Ensure we have valid data
+        const labels = salesData.labels && salesData.labels.length > 0 
+            ? salesData.labels 
+            : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+            
+        const revenues = salesData.revenues && salesData.revenues.length > 0 
+            ? salesData.revenues 
+            : [0, 0, 0, 0, 0, 0, 0];
+        
+        console.log('Sales Chart Data:', { labels, revenues });
+        
+        try {
+            salesChart = new Chart(salesCtx.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Sales Revenue ($)',
+                        data: revenues,
+                        borderColor: 'hsl(0 85% 55%)',
+                        backgroundColor: 'rgba(255, 68, 68, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 5,
+                        pointBackgroundColor: 'hsl(0 85% 55%)',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointHoverRadius: 7
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            labels: {
+                                color: 'hsl(0 0% 95%)',
+                                font: {
+                                    size: 12,
+                                    weight: '600'
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                color: 'hsl(0 0% 95%)',
+                                callback: function(value) {
+                                    return '$' + value;
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                color: 'hsl(0 0% 95%)'
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            console.log('Sales chart created successfully');
+        } catch (error) {
+            console.error('Error creating sales chart:', error);
+        }
     }
 
-    // Order Status Chart
+    // ============================================
+    // ORDER STATUS CHART - REAL DATA
+    // ============================================
     const statusCtx = document.getElementById('orderStatusChart');
     if (statusCtx) {
         if (orderStatusChart) orderStatusChart.destroy();
 
-        orderStatusChart = new Chart(statusCtx.getContext('2d'), {
-            type: 'doughnut',
-            data: {
-                labels: ['Pending', 'Processing', 'Completed', 'Cancelled'],
-                datasets: [{
-                    data: [
-                        stats.ordersPending || 0,
-                        stats.ordersProcessing || 0,
-                        stats.ordersCompleted || 0,
-                        stats.ordersCancelled || 0
-                    ],
-                    backgroundColor: [
-                        'hsl(38 92% 50%)',
-                        'hsl(200 100% 50%)',
-                        'hsl(142 76% 36%)',
-                        'hsl(0 72% 50%)'
-                    ]
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false
-            }
-        });
+        // Get real order status data from stats
+        const statusData = stats.orderStatusData || {
+            pending: 0,
+            processing: 0,
+            completed: 0,
+            cancelled: 0
+        };
+        
+        console.log('Order Status Data:', statusData);
+        
+        try {
+            orderStatusChart = new Chart(statusCtx.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Pending', 'Processing', 'Completed', 'Cancelled'],
+                    datasets: [{
+                        label: 'Orders',
+                        data: [
+                            statusData.pending || 0,
+                            statusData.processing || 0,
+                            statusData.completed || 0,
+                            statusData.cancelled || 0
+                        ],
+                        backgroundColor: [
+                            'hsl(38 92% 50%)',   // Orange - Pending
+                            'hsl(200 100% 50%)', // Blue - Processing
+                            'hsl(142 76% 36%)',  // Green - Completed
+                            'hsl(0 72% 50%)'     // Red - Cancelled
+                        ],
+                        borderColor: 'hsl(0 0% 8%)',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'bottom',
+                            labels: {
+                                color: 'hsl(0 0% 95%)',
+                                font: {
+                                    size: 12,
+                                    weight: '600'
+                                },
+                                padding: 15
+                            }
+                        }
+                    }
+                }
+            });
+            
+            console.log('Order status chart created successfully');
+        } catch (error) {
+            console.error('Error creating order status chart:', error);
+        }
     }
 }
 
@@ -251,7 +435,6 @@ function loadActivityLog(activities) {
     `).join('');
 }
 
-
 function getActivityIcon(type) {
     const icons = {
         'add': 'plus',
@@ -263,7 +446,6 @@ function getActivityIcon(type) {
     };
     return icons[type] || 'info-circle';
 }
-
 
 function formatTime(timestamp) {
     if (!timestamp) return 'Recently';
@@ -314,6 +496,10 @@ function logout() {
     localStorage.removeItem('cart');
     window.location.href = 'login.html';
 }
+
+// ============================================
+// PRODUCTS MANAGEMENT
+// ============================================
 
 async function loadProducts() {
     try {
@@ -366,10 +552,8 @@ async function loadProducts() {
 function editProduct(productId) {
     console.log('Editing product:', productId);
     
-    // Show loading state
     toast.info('Loading', 'Loading product details...');
     
-    // Fetch product details
     fetch(`php/products.php?action=get&id=${productId}`)
         .then(response => response.json())
         .then(data => {
@@ -417,6 +601,7 @@ async function deleteProduct(productId) {
         const data = await response.json();
         if (data.status === 'success') {
             toast.success('Success', 'Product deleted successfully');
+            // AUTO RELOAD IMMEDIATELY
             loadProducts();
             loadDashboard();
         } else {
@@ -428,48 +613,9 @@ async function deleteProduct(productId) {
     }
 }
 
-async function handleProductSubmit(e) {
-    e.preventDefault();
-    console.log('Product form submitted');
-
-    const formData = new FormData();
-    formData.append('action', currentEditingProduct ? 'update' : 'create');
-    formData.append('id', document.getElementById('productId').value || '');
-    formData.append('name', document.getElementById('productName').value);
-    formData.append('category', document.getElementById('productCategory').value);
-    formData.append('description', document.getElementById('productDesc').value);
-    formData.append('price', document.getElementById('productPrice').value);
-    formData.append('stock', document.getElementById('productStock').value);
-
-    // Handle image upload
-    const imageInput = document.getElementById('productImage');
-    if (imageInput && imageInput.files[0]) {
-        formData.append('image', imageInput.files[0]);
-    }
-
-    try {
-        const response = await fetch('php/products.php', {
-            method: 'POST',
-            body: formData
-        });
-
-        const data = await response.json();
-        console.log('Product save response:', data);
-
-        if (data.status === 'success') {
-            toast.success('Success', data.message);
-            document.getElementById('productModal').classList.remove('active');
-            productForm.reset();
-            loadProducts();
-            loadDashboard();
-        } else {
-            toast.error('Error', data.message || 'Failed to save product');
-        }
-    } catch (error) {
-        console.error('Error saving product:', error);
-        toast.error('Error', 'An error occurred while saving the product');
-    }
-}
+// ============================================
+// STAFF MANAGEMENT
+// ============================================
 
 async function loadStaff() {
     try {
@@ -508,6 +654,12 @@ async function loadStaff() {
 async function handleStaffSubmit(e) {
     e.preventDefault();
 
+    const submitBtn = this.querySelector('button[type="submit"]');
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Creating...';
+    }
+
     const formData = {
         action: 'create_staff',
         username: document.getElementById('staffUsername').value,
@@ -526,15 +678,25 @@ async function handleStaffSubmit(e) {
 
         if (data.status === 'success') {
             toast.success('Success', 'Staff account created successfully');
-            document.getElementById('staffModal').classList.remove('active');
-            document.getElementById('staffForm').reset();
-            loadStaff();
+            
+            const staffModal = document.getElementById('staffModal');
+            const staffForm = document.getElementById('staffForm');
+            
+            if (staffModal) staffModal.classList.remove('active');
+            if (staffForm) staffForm.reset();
+            
+            loadStaff(); // AUTO RELOAD
         } else {
             toast.error('Error', data.message || 'Failed to create staff account');
         }
     } catch (error) {
         console.error('Error creating staff:', error);
         toast.error('Error', 'Failed to create staff account');
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Create Account';
+        }
     }
 }
 
@@ -552,7 +714,7 @@ async function toggleStaffStatus(staffId) {
         const data = await response.json();
         if (data.status === 'success') {
             toast.success('Success', 'Staff status updated');
-            loadStaff();
+            loadStaff(); // AUTO RELOAD
         } else {
             toast.error('Error', data.message || 'Failed to update status');
         }
@@ -578,7 +740,7 @@ async function deleteStaff(staffId) {
         const data = await response.json();
         if (data.status === 'success') {
             toast.success('Success', 'Staff deleted successfully');
-            loadStaff();
+            loadStaff(); // AUTO RELOAD
         } else {
             toast.error('Error', data.message || 'Failed to delete staff');
         }
@@ -587,6 +749,10 @@ async function deleteStaff(staffId) {
         toast.error('Error', 'Failed to delete staff');
     }
 }
+
+// ============================================
+// ORDERS MANAGEMENT
+// ============================================
 
 async function loadOrders() {
     try {
@@ -626,10 +792,7 @@ async function loadOrders() {
     }
 }
 
-
-// Logout
-document.getElementById('logoutBtn').addEventListener('click', logout);
-
+// Export functions for global access
 window.editProduct = editProduct;
 window.deleteProduct = deleteProduct;
 window.toggleStaffStatus = toggleStaffStatus;

@@ -1,6 +1,5 @@
 <?php
-// File: php/orders.php
-// COMPLETE ORDER MANAGEMENT
+
 
 header('Content-Type: application/json');
 require_once 'config.php';

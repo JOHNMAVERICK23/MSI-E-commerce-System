@@ -1,8 +1,5 @@
 <?php
-// File: php/config.php
-// CLEAN DATABASE CONFIGURATION - NO FUNCTIONS
 
-// Database Configuration
 define('DB_HOST', 'localhost');
 define('DB_USER', 'root');
 define('DB_PASS', '');

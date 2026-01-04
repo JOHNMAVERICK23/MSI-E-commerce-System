@@ -1,6 +1,4 @@
 <?php
-// File: php/dashboard.php
-// FIXED - Charts now use real data from database
 
 header('Content-Type: application/json');
 require_once 'config.php';
@@ -28,21 +26,31 @@ switch ($action) {
 function getDashboardStats() {
     global $conn;
     
+    error_log('=== GETTING DASHBOARD STATS ===');
+    
+    // Get all the stats
+    $totalProducts = getTotalProducts();
+    $totalOrders = getTotalOrders();
+    $totalRevenue = getTotalRevenue();
+    $activeStaff = getActiveStaff();
+    
+    // Get chart data
+    $salesData = getSalesChartData();
+    $orderStatusData = getOrderStatusData();
+    
     $stats = [
-        'totalProducts' => getTotalProducts(),
-        'totalOrders' => getTotalOrders(),
-        'totalRevenue' => getTotalRevenue(),
-        'activeStaff' => getActiveStaff(),
-        'ordersPending' => getOrdersByStatus('pending'),
-        'ordersProcessing' => getOrdersByStatus('processing'),
-        'ordersCompleted' => getOrdersByStatus('completed'),
-        'ordersCancelled' => getOrdersByStatus('cancelled'),
+        'totalProducts' => intval($totalProducts),
+        'totalOrders' => intval($totalOrders),
+        'totalRevenue' => floatval($totalRevenue),
+        'activeStaff' => intval($activeStaff),
+        'salesData' => $salesData,
+        'orderStatusData' => $orderStatusData,
         'recentActivity' => getRecentActivity(),
         'topProducts' => getTopProducts(),
-        'monthlyRevenue' => getMonthlyRevenue(),
-        'salesData' => getSalesChartData(),  // NEW: Real sales data
-        'orderStatusData' => getOrderStatusData()  // NEW: Real order status data
+        'monthlyRevenue' => getMonthlyRevenue()
     ];
+    
+    error_log('Final Stats: ' . json_encode($stats));
     
     echo json_encode(['status' => 'success', 'data' => $stats]);
 }
@@ -56,7 +64,7 @@ function getTotalProducts() {
     $result = $conn->query("SELECT COUNT(*) as count FROM products WHERE status = 'active'");
     $row = $result->fetch_assoc();
     
-    return $row['count'] ?? 0;
+    return intval($row['count'] ?? 0);
 }
 
 /**
@@ -68,7 +76,7 @@ function getTotalOrders() {
     $result = $conn->query("SELECT COUNT(*) as count FROM orders");
     $row = $result->fetch_assoc();
     
-    return $row['count'] ?? 0;
+    return intval($row['count'] ?? 0);
 }
 
 /**
@@ -77,10 +85,14 @@ function getTotalOrders() {
 function getTotalRevenue() {
     global $conn;
     
-    $result = $conn->query("SELECT COALESCE(SUM(total_amount), 0) as total FROM orders WHERE status = 'completed'");
-    $row = $result->fetch_assoc();
+    $result = $conn->query("SELECT COALESCE(SUM(total_amount), 0) as total FROM orders WHERE status IN ('completed', 'processing', 'pending')");
     
-    return floatval($row['total']) ?? 0;
+    if ($result) {
+        $row = $result->fetch_assoc();
+        return floatval($row['total']) ?? 0;
+    }
+    
+    return 0;
 }
 
 /**
@@ -92,7 +104,7 @@ function getActiveStaff() {
     $result = $conn->query("SELECT COUNT(*) as count FROM users WHERE role = 'staff' AND status = 'active'");
     $row = $result->fetch_assoc();
     
-    return $row['count'] ?? 0;
+    return intval($row['count'] ?? 0);
 }
 
 /**
@@ -119,37 +131,54 @@ function getSalesChartData() {
     $query = "SELECT 
                 DATE_FORMAT(created_at, '%a') as day_name,
                 DATE(created_at) as date,
-                COUNT(*) as orders,
                 COALESCE(SUM(total_amount), 0) as revenue
               FROM orders
               WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+              AND status IN ('completed', 'processing', 'pending')
               GROUP BY DATE(created_at)
-              ORDER BY created_at ASC";
+              ORDER BY DATE(created_at) ASC";
     
     $result = $conn->query($query);
     
-    $data = [];
+    error_log('Sales Chart Query Result Rows: ' . ($result ? $result->num_rows : 'NULL'));
+    
     $labels = [];
     $revenues = [];
     
+    // Create an array for all 7 days with defaults
+    $daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    $defaultData = array_fill_keys($daysOfWeek, 0);
+    
     if ($result && $result->num_rows > 0) {
         while ($row = $result->fetch_assoc()) {
-            $labels[] = $row['day_name'];
-            $revenues[] = floatval($row['revenue']);
+            error_log('Row: ' . json_encode($row));
+            $dayName = $row['day_name'];
+            $revenue = floatval($row['revenue']);
+            
+            // Store in associative array
+            $defaultData[$dayName] = $revenue;
         }
+    } else {
+        error_log('No sales data found for last 7 days');
     }
     
-    // If walang data, fill with zeros para last 7 days
-    if (empty($labels)) {
-        $labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-        $revenues = [0, 0, 0, 0, 0, 0, 0];
+    // Build final arrays
+    foreach ($daysOfWeek as $day) {
+        $labels[] = $day;
+        $revenues[] = floatval($defaultData[$day]);
     }
+    
+    error_log('Sales Chart Final Data: ' . json_encode([
+        'labels' => $labels,
+        'revenues' => $revenues
+    ]));
     
     return [
         'labels' => $labels,
         'revenues' => $revenues
     ];
 }
+
 
 /**
  * GET ORDER STATUS DISTRIBUTION DATA
@@ -162,78 +191,63 @@ function getOrderStatusData() {
                 status,
                 COUNT(*) as count
               FROM orders
-              GROUP BY status
-              ORDER BY FIELD(status, 'pending', 'processing', 'completed', 'cancelled')";
+              GROUP BY status";
     
     $result = $conn->query($query);
     
-    $pending = 0;
-    $processing = 0;
-    $completed = 0;
-    $cancelled = 0;
+    error_log('Order Status Query Result: ' . ($result ? $result->num_rows : 'NULL') . ' rows');
+    
+    $statusData = [
+        'pending' => 0,
+        'processing' => 0,
+        'completed' => 0,
+        'cancelled' => 0
+    ];
     
     if ($result && $result->num_rows > 0) {
         while ($row = $result->fetch_assoc()) {
-            switch($row['status']) {
-                case 'pending':
-                    $pending = intval($row['count']);
-                    break;
-                case 'processing':
-                    $processing = intval($row['count']);
-                    break;
-                case 'completed':
-                    $completed = intval($row['count']);
-                    break;
-                case 'cancelled':
-                    $cancelled = intval($row['count']);
-                    break;
+            error_log('Status Row: ' . json_encode($row));
+            
+            $status = strtolower(trim($row['status']));
+            $count = intval($row['count']);
+            
+            if (array_key_exists($status, $statusData)) {
+                $statusData[$status] = $count;
             }
         }
+    } else {
+        error_log('No order status data found');
     }
     
-    return [
-        'pending' => $pending,
-        'processing' => $processing,
-        'completed' => $completed,
-        'cancelled' => $cancelled
-    ];
+    error_log('Order Status Final Data: ' . json_encode($statusData));
+    
+    return $statusData;
 }
 
 /**
  * GET RECENT ACTIVITY LOG
  */
 function getRecentActivity() {
-    // Mock activity data - In production, create activity_log table
-    $activities = [
+    // Mock data - in production use actual activity log
+    return [
         [
             'type' => 'add',
-            'text' => 'New product added',
+            'text' => 'New product added to catalog',
             'timestamp' => date('Y-m-d H:i:s')
         ],
         [
             'type' => 'order',
-            'text' => 'New order received',
+            'text' => 'New customer order received',
             'timestamp' => date('Y-m-d H:i:s', time() - 3600)
         ],
         [
             'type' => 'edit',
-            'text' => 'Product updated',
+            'text' => 'Product information updated',
             'timestamp' => date('Y-m-d H:i:s', time() - 7200)
-        ],
-        [
-            'type' => 'staff',
-            'text' => 'New staff account created',
-            'timestamp' => date('Y-m-d H:i:s', time() - 10800)
-        ],
-        [
-            'type' => 'delete',
-            'text' => 'Product deleted',
-            'timestamp' => date('Y-m-d H:i:s', time() - 14400)
         ]
     ];
-    
-    return array_slice($activities, 0, 10);
 }
+
 
 /**
  * GET TOP SELLING PRODUCTS
@@ -271,7 +285,7 @@ function getMonthlyRevenue() {
                      SUM(total_amount) as revenue, 
                      COUNT(*) as orders
               FROM orders
-              WHERE status = 'completed'
+              WHERE status IN ('completed', 'processing', 'pending')
               GROUP BY DATE_FORMAT(created_at, '%Y-%m')
               ORDER BY month DESC
               LIMIT 12";

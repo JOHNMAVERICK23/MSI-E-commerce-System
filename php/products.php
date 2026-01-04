@@ -225,7 +225,7 @@ function getProduct() {
     $result = $stmt->get_result();
     
     if ($result->num_rows === 0) {
-        logProductAction("⚠️ Product not found with ID: $id");
+        logProductAction(" Product not found with ID: $id");
         echo json_encode(['status' => 'error', 'message' => 'Product not found']);
         $stmt->close();
         return;
@@ -234,7 +234,7 @@ function getProduct() {
     $product = $result->fetch_assoc();
     $stmt->close();
     
-    logProductAction("✅ Product found: " . $product['name']);
+    logProductAction(" Product found: " . $product['name']);
     echo json_encode(['status' => 'success', 'data' => $product]);
 }
 
@@ -258,13 +258,13 @@ function updateProduct() {
     
     // Validation
     if ($id <= 0) {
-        logProductAction("⚠️ Invalid product ID");
+        logProductAction(" Invalid product ID");
         echo json_encode(['status' => 'error', 'message' => 'Invalid product ID']);
         return;
     }
     
     if (empty($name) || $price <= 0) {
-        logProductAction("⚠️ Validation failed");
+        logProductAction(" Validation failed");
         echo json_encode(['status' => 'error', 'message' => 'Invalid product data']);
         return;
     }
@@ -272,7 +272,7 @@ function updateProduct() {
     // Handle image upload
     $imageUrl = '';
     if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
-        logProductAction("📸 New image provided");
+        logProductAction(" New image provided");
         $imageUrl = handleImageUpload($_FILES['image']);
     }
     
@@ -291,14 +291,14 @@ function updateProduct() {
     
     if ($stmt->execute()) {
         if ($stmt->affected_rows > 0) {
-            logProductAction("✅ Product updated successfully");
+            logProductAction(" Product updated successfully");
             echo json_encode(['status' => 'success', 'message' => 'Product updated successfully']);
         } else {
-            logProductAction("⚠️ No rows affected - product not found?");
+            logProductAction(" No rows affected - product not found?");
             echo json_encode(['status' => 'error', 'message' => 'Product not found or no changes made']);
         }
     } else {
-        logProductAction("❌ Execute failed: " . $stmt->error);
+        logProductAction(" Execute failed: " . $stmt->error);
         echo json_encode(['status' => 'error', 'message' => 'Failed to update: ' . $stmt->error]);
     }
     
@@ -312,7 +312,7 @@ function updateProduct() {
 function deleteProduct() {
     global $conn;
     
-    logProductAction("🗑️ DELETING PRODUCT");
+    logProductAction(" DELETING PRODUCT");
     
     $input = json_decode(file_get_contents('php://input'), true);
     $id = intval($input['id'] ?? 0);
@@ -320,7 +320,7 @@ function deleteProduct() {
     logProductAction("Delete ID: $id");
     
     if ($id <= 0) {
-        logProductAction("⚠️ Invalid product ID");
+        logProductAction(" Invalid product ID");
         echo json_encode(['status' => 'error', 'message' => 'Invalid product ID']);
         return;
     }
@@ -328,7 +328,7 @@ function deleteProduct() {
     $stmt = $conn->prepare("UPDATE products SET status='inactive' WHERE id=?");
     
     if (!$stmt) {
-        logProductAction("❌ Prepare failed: " . $conn->error);
+        logProductAction(" Prepare failed: " . $conn->error);
         echo json_encode(['status' => 'error', 'message' => 'Database error']);
         return;
     }
@@ -337,24 +337,21 @@ function deleteProduct() {
     
     if ($stmt->execute()) {
         if ($stmt->affected_rows > 0) {
-            logProductAction("✅ Product deleted (soft delete) successfully");
+            logProductAction(" Product deleted (soft delete) successfully");
             echo json_encode(['status' => 'success', 'message' => 'Product deleted successfully']);
         } else {
-            logProductAction("⚠️ Product not found");
+            logProductAction(" Product not found");
             echo json_encode(['status' => 'error', 'message' => 'Product not found']);
         }
     } else {
-        logProductAction("❌ Execute failed: " . $stmt->error);
+        logProductAction(" Execute failed: " . $stmt->error);
         echo json_encode(['status' => 'error', 'message' => 'Failed to delete: ' . $stmt->error]);
     }
     
     $stmt->close();
 }
 
-/**
- * GET PRODUCTS BY CATEGORY
- * UPDATED: With better validation
- */
+
 function getProductsByCategory() {
     global $conn;
     
@@ -392,10 +389,10 @@ function getProductsByCategory() {
  * UPDATED: Better file validation
  */
 function handleImageUpload($file) {
-    logProductAction("📸 Processing image upload");
+    logProductAction(" Processing image upload");
     
     if ($file['error'] !== UPLOAD_ERR_OK) {
-        logProductAction("⚠️ Upload error code: " . $file['error']);
+        logProductAction(" Upload error code: " . $file['error']);
         return '';
     }
     
@@ -404,7 +401,7 @@ function handleImageUpload($file) {
     // Create directory if it doesn't exist
     if (!file_exists($uploadDir)) {
         if (!mkdir($uploadDir, 0777, true)) {
-            logProductAction("❌ Failed to create upload directory");
+            logProductAction(" Failed to create upload directory");
             return '';
         }
     }
@@ -412,13 +409,13 @@ function handleImageUpload($file) {
     // Validate file type
     $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
     if (!in_array($file['type'], $allowedTypes)) {
-        logProductAction("⚠️ Invalid file type: " . $file['type']);
+        logProductAction(" Invalid file type: " . $file['type']);
         return '';
     }
     
     // Validate file size (max 5MB)
     if ($file['size'] > 5 * 1024 * 1024) {
-        logProductAction("⚠️ File too large: " . $file['size']);
+        logProductAction(" File too large: " . $file['size']);
         return '';
     }
     
@@ -428,10 +425,10 @@ function handleImageUpload($file) {
     
     // Move file
     if (move_uploaded_file($file['tmp_name'], $uploadPath)) {
-        logProductAction("✅ File uploaded: $fileName");
+        logProductAction(" File uploaded: $fileName");
         return 'uploads/products/' . $fileName;
     } else {
-        logProductAction("❌ Failed to move uploaded file");
+        logProductAction(" Failed to move uploaded file");
         return '';
     }
 }

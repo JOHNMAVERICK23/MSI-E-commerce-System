@@ -257,60 +257,90 @@ function updateElementText(id, text) {
 }
 
 function createCharts(stats) {
-    console.log('Creating charts with data:', stats);
+    console.log('Creating charts with stats:', stats);
     
     // ============================================
-    // SALES CHART - REAL DATA
+    // SALES CHART - LINE CHART
     // ============================================
     const salesCtx = document.getElementById('salesChart');
     if (salesCtx) {
-        if (salesChart) salesChart.destroy();
+        // Destroy existing chart if it exists
+        if (salesChart) {
+            salesChart.destroy();
+        }
         
-        // Get real sales data from stats
+        // Get chart data
         const salesData = stats.salesData || { labels: [], revenues: [] };
+        console.log('Sales Data:', salesData);
         
-        // Ensure we have valid data
-        const labels = salesData.labels && salesData.labels.length > 0 
-            ? salesData.labels 
+        // Ensure we have valid data arrays
+        let labels = salesData.labels && Array.isArray(salesData.labels) && salesData.labels.length > 0
+            ? salesData.labels
             : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-            
-        const revenues = salesData.revenues && salesData.revenues.length > 0 
-            ? salesData.revenues 
+        
+        let revenues = salesData.revenues && Array.isArray(salesData.revenues) && salesData.revenues.length > 0
+            ? salesData.revenues.map(val => parseFloat(val) || 0)
             : [0, 0, 0, 0, 0, 0, 0];
         
-        console.log('Sales Chart Data:', { labels, revenues });
+        console.log('Final Sales Chart Data:', { labels, revenues });
         
         try {
-            salesChart = new Chart(salesCtx.getContext('2d'), {
+            salesChart = new Chart(salesCtx, {
                 type: 'line',
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: 'Sales Revenue ($)',
+                        label: 'Daily Sales Revenue ($)',
                         data: revenues,
-                        borderColor: 'hsl(0 85% 55%)',
+                        borderColor: '#ff4444',
                         backgroundColor: 'rgba(255, 68, 68, 0.1)',
-                        borderWidth: 2,
+                        borderWidth: 3,
                         fill: true,
                         tension: 0.4,
-                        pointRadius: 5,
-                        pointBackgroundColor: 'hsl(0 85% 55%)',
+                        pointRadius: 6,
+                        pointBackgroundColor: '#ff4444',
                         pointBorderColor: '#fff',
                         pointBorderWidth: 2,
-                        pointHoverRadius: 7
+                        pointHoverRadius: 8,
+                        pointHoverBackgroundColor: '#ff6666',
+                        segment: {
+                            borderColor: ctx => ctx.p0DataIndex === ctx.p1DataIndex - 1 ? '#ff4444' : '#ff4444'
+                        }
                     }]
                 },
                 options: {
                     responsive: true,
-                    maintainAspectRatio: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
                     plugins: {
                         legend: {
                             display: true,
+                            position: 'top',
                             labels: {
-                                color: 'hsl(0 0% 95%)',
+                                color: '#efefef',
                                 font: {
-                                    size: 12,
-                                    weight: '600'
+                                    size: 13,
+                                    weight: '600',
+                                    family: 'Segoe UI'
+                                },
+                                padding: 15,
+                                usePointStyle: true
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleColor: '#fff',
+                            bodyColor: '#fff',
+                            borderColor: '#ff4444',
+                            borderWidth: 1,
+                            padding: 12,
+                            displayColors: false,
+                            callbacks: {
+                                label: function(context) {
+                                    return '$ ' + context.parsed.y.toFixed(2);
                                 }
                             }
                         }
@@ -319,41 +349,58 @@ function createCharts(stats) {
                         y: {
                             beginAtZero: true,
                             ticks: {
-                                color: 'hsl(0 0% 95%)',
+                                color: '#efefef',
+                                font: {
+                                    size: 12
+                                },
                                 callback: function(value) {
-                                    return '$' + value;
+                                    return '$' + value.toFixed(0);
                                 }
                             },
                             grid: {
-                                color: 'rgba(255, 255, 255, 0.1)'
+                                color: 'rgba(255, 255, 255, 0.05)',
+                                drawBorder: false
+                            },
+                            border: {
+                                display: false
                             }
                         },
                         x: {
                             ticks: {
-                                color: 'hsl(0 0% 95%)'
+                                color: '#efefef',
+                                font: {
+                                    size: 12
+                                }
                             },
                             grid: {
-                                color: 'rgba(255, 255, 255, 0.1)'
+                                display: false,
+                                drawBorder: false
+                            },
+                            border: {
+                                display: false
                             }
                         }
                     }
                 }
             });
             
-            console.log('Sales chart created successfully');
+            console.log('✅ Sales chart created successfully');
         } catch (error) {
-            console.error('Error creating sales chart:', error);
+            console.error('❌ Error creating sales chart:', error);
         }
     }
 
     // ============================================
-    // ORDER STATUS CHART - REAL DATA
+    // ORDER STATUS CHART - DOUGHNUT CHART
     // ============================================
     const statusCtx = document.getElementById('orderStatusChart');
     if (statusCtx) {
-        if (orderStatusChart) orderStatusChart.destroy();
+        // Destroy existing chart if it exists
+        if (orderStatusChart) {
+            orderStatusChart.destroy();
+        }
 
-        // Get real order status data from stats
+        // Get order status data
         const statusData = stats.orderStatusData || {
             pending: 0,
             processing: 0,
@@ -363,43 +410,72 @@ function createCharts(stats) {
         
         console.log('Order Status Data:', statusData);
         
+        // Ensure all values are numbers
+        const pending = parseInt(statusData.pending) || 0;
+        const processing = parseInt(statusData.processing) || 0;
+        const completed = parseInt(statusData.completed) || 0;
+        const cancelled = parseInt(statusData.cancelled) || 0;
+        
+        const dataValues = [pending, processing, completed, cancelled];
+        const totalOrders = dataValues.reduce((a, b) => a + b, 0);
+        
+        console.log('Final Order Status Chart Data:', {
+            pending, processing, completed, cancelled, total: totalOrders
+        });
+        
         try {
-            orderStatusChart = new Chart(statusCtx.getContext('2d'), {
+            orderStatusChart = new Chart(statusCtx, {
                 type: 'doughnut',
                 data: {
                     labels: ['Pending', 'Processing', 'Completed', 'Cancelled'],
                     datasets: [{
-                        label: 'Orders',
-                        data: [
-                            statusData.pending || 0,
-                            statusData.processing || 0,
-                            statusData.completed || 0,
-                            statusData.cancelled || 0
-                        ],
+                        label: 'Order Count',
+                        data: [pending, processing, completed, cancelled],
                         backgroundColor: [
-                            'hsl(38 92% 50%)',   // Orange - Pending
-                            'hsl(200 100% 50%)', // Blue - Processing
-                            'hsl(142 76% 36%)',  // Green - Completed
-                            'hsl(0 72% 50%)'     // Red - Cancelled
+                            '#ff8800',    // Orange - Pending
+                            '#3b82f6',    // Blue - Processing
+                            '#22c55e',    // Green - Completed
+                            '#dc2626'     // Red - Cancelled
                         ],
-                        borderColor: 'hsl(0 0% 8%)',
-                        borderWidth: 2
+                        borderColor: '#131313',
+                        borderWidth: 3,
+                        hoverBorderColor: '#ffffff',
+                        hoverBorderWidth: 4
                     }]
                 },
                 options: {
                     responsive: true,
-                    maintainAspectRatio: true,
+                    maintainAspectRatio: false,
                     plugins: {
                         legend: {
                             display: true,
                             position: 'bottom',
                             labels: {
-                                color: 'hsl(0 0% 95%)',
+                                color: '#efefef',
                                 font: {
                                     size: 12,
-                                    weight: '600'
+                                    weight: '600',
+                                    family: 'Segoe UI'
                                 },
-                                padding: 15
+                                padding: 20,
+                                usePointStyle: true,
+                                pointStyle: 'circle'
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleColor: '#fff',
+                            bodyColor: '#fff',
+                            borderColor: '#ff4444',
+                            borderWidth: 1,
+                            padding: 12,
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.parsed || 0;
+                                    const percentage = totalOrders > 0 ? ((value / totalOrders) * 100).toFixed(1) : 0;
+                                    return label + ': ' + value + ' (' + percentage + '%)';
+                                }
                             }
                         }
                     }
@@ -408,7 +484,7 @@ function createCharts(stats) {
             
             console.log('Order status chart created successfully');
         } catch (error) {
-            console.error('Error creating order status chart:', error);
+            console.error(' Error creating order status chart:', error);
         }
     }
 }

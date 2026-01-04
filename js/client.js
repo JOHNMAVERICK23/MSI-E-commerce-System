@@ -5,10 +5,8 @@ let selectedProductId = null;
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Client page loaded');
     
-    // Check if logged in (but DON'T redirect based on role - allow customers and guests)
     const user = getUser();
     
-    // FIXED: Only redirect admins and staff, allow customers
     if (user && user.role === 'admin') {
         console.log('Admin detected, redirecting to admin.html');
         window.location.href = 'admin.html';
@@ -19,15 +17,9 @@ document.addEventListener('DOMContentLoaded', () => {
         window.location.href = 'staff.html';
         return;
     }
-    // Customers at guests allowed to stay on index.html
 
-    // Load cart from storage
     loadCartFromStorage();
-    
-    // Load products
     loadProducts();
-
-    // Setup event listeners
     setupEventListeners();
     
     console.log('Setup complete');
@@ -36,39 +28,45 @@ document.addEventListener('DOMContentLoaded', () => {
 function setupEventListeners() {
     console.log('Setting up event listeners...');
 
+    // Cart button
     const cartBtn = document.getElementById('cartBtn');
     if (cartBtn) cartBtn.addEventListener('click', toggleCart);
     
-    const closeCart = document.querySelector('[onclick="closeCart()"]');
-    if (closeCart) closeCart.addEventListener('click', () => toggleCart());
+    // Close cart button
+    const closeCartBtn = document.getElementById('closeCartBtn');
+    if (closeCartBtn) closeCartBtn.addEventListener('click', toggleCart);
     
+    // Continue shopping button
     const continueShopping = document.getElementById('continueShopping');
-    if (continueShopping) continueShopping.addEventListener('click', () => toggleCart());
+    if (continueShopping) continueShopping.addEventListener('click', toggleCart);
 
+    // User button
     const userBtn = document.getElementById('userBtn');
     if (userBtn) userBtn.addEventListener('click', toggleUserMenu);
 
+    // Logout link
     const logoutLink = document.getElementById('logoutLink');
     if (logoutLink) logoutLink.addEventListener('click', (e) => {
         e.preventDefault();
         logout();
     });
 
+    // Overlay click
     const overlay = document.getElementById('overlay');
     if (overlay) overlay.addEventListener('click', closeAllModals);
 
-
+    // Search and filter
     const searchInput = document.getElementById('searchInput');
     if (searchInput) searchInput.addEventListener('input', filterProducts);
     
     const categoryFilter = document.getElementById('categoryFilter');
     if (categoryFilter) categoryFilter.addEventListener('change', filterProducts);
 
-
+    // Checkout button
     const checkoutBtn = document.getElementById('checkoutBtn');
     if (checkoutBtn) checkoutBtn.addEventListener('click', goToCheckout);
 
-
+    // Modal close buttons
     const allCloseButtons = document.querySelectorAll('.close-modal');
     allCloseButtons.forEach(button => {
         button.addEventListener('click', (e) => {
@@ -83,6 +81,7 @@ function setupEventListeners() {
         });
     });
 
+    // Click outside to close modals
     document.querySelectorAll('.modal').forEach(modal => {
         modal.addEventListener('click', (e) => {
             if (e.target === modal) {
@@ -93,15 +92,73 @@ function setupEventListeners() {
         });
     });
 
-
+    // Product modal quantity buttons
     const decreaseBtn = document.getElementById('decreaseQty');
     if (decreaseBtn) decreaseBtn.addEventListener('click', decreaseQuantity);
     
     const increaseBtn = document.getElementById('increaseQty');
     if (increaseBtn) increaseBtn.addEventListener('click', increaseQuantity);
 
+    const cartItems = document.getElementById('cartItems');
+if (cartItems) {
+    cartItems.addEventListener('click', handleCartClick);
+}
+
+
     console.log('Event listeners setup complete');
 }
+
+
+function handleCartClick(e) {
+    const button = e.target.closest('button');
+    if (!button) return;
+
+    e.preventDefault();
+
+    const productId = Number(button.dataset.id);
+    if (!productId) return;
+
+    if (button.classList.contains('cart-item-remove')) {
+        removeFromCart(productId);
+        return;
+    }
+
+    if (button.classList.contains('cart-item-qty-btn')) {
+        if (button.dataset.action === 'increase') {
+            increaseCartQuantity(productId);
+        } else if (button.dataset.action === 'decrease') {
+            decreaseCartQuantity(productId);
+        }
+    }
+}
+
+
+
+function decreaseCartQuantity(productId) {
+    const item = cart.find(i => Number(i.id) === Number(productId));
+    if (!item) return;
+
+    if (item.quantity > 1) {
+        item.quantity--;
+    } else {
+        removeFromCart(productId);
+        return;
+    }
+
+    saveCartToStorage();
+    updateCartUI();
+}
+
+
+function increaseCartQuantity(productId) {
+    const item = cart.find(i => Number(i.id) === Number(productId));
+    if (!item) return;
+
+    item.quantity++;
+    saveCartToStorage();
+    updateCartUI();
+}
+
 
 
 async function loadProducts() {
@@ -174,7 +231,6 @@ function filterProducts() {
     displayProducts(filtered);
 }
 
-
 function openProductDetail(productId) {
     console.log('Opening product detail for ID:', productId);
     
@@ -201,15 +257,42 @@ function openProductDetail(productId) {
         quantityInput.max = product.stock;
     }
 
-    // Add to cart button - FIXED para hindi mag-double
+    // FIXED: Re-attach quantity button events
+    const decreaseBtn = document.getElementById('decreaseQty');
+    const increaseBtn = document.getElementById('increaseQty');
     const addToCartBtn = document.getElementById('addToCartBtn');
-    if (addToCartBtn) {
-        // Clone at replace para sa clean event handling
-        const newBtn = addToCartBtn.cloneNode(true);
-        addToCartBtn.parentNode.replaceChild(newBtn, addToCartBtn);
-        
-        // Attach event
-        newBtn.onclick = function() {
+    
+    // Remove old event listeners
+    if (decreaseBtn) decreaseBtn.replaceWith(decreaseBtn.cloneNode(true));
+    if (increaseBtn) increaseBtn.replaceWith(increaseBtn.cloneNode(true));
+    if (addToCartBtn) addToCartBtn.replaceWith(addToCartBtn.cloneNode(true));
+    
+    // Add new event listeners
+    const newDecreaseBtn = document.getElementById('decreaseQty');
+    const newIncreaseBtn = document.getElementById('increaseQty');
+    const newAddToCartBtn = document.getElementById('addToCartBtn');
+    
+    if (newDecreaseBtn) {
+        newDecreaseBtn.addEventListener('click', () => {
+            const input = document.getElementById('quantityInput');
+            if (parseInt(input.value) > 1) {
+                input.value = parseInt(input.value) - 1;
+            }
+        });
+    }
+    
+    if (newIncreaseBtn) {
+        newIncreaseBtn.addEventListener('click', () => {
+            const input = document.getElementById('quantityInput');
+            const max = parseInt(input.max);
+            if (parseInt(input.value) < max) {
+                input.value = parseInt(input.value) + 1;
+            }
+        });
+    }
+    
+    if (newAddToCartBtn) {
+        newAddToCartBtn.addEventListener('click', () => {
             const quantity = parseInt(document.getElementById('quantityInput').value);
             
             if (product.stock < quantity) {
@@ -220,7 +303,7 @@ function openProductDetail(productId) {
             addToCart(product, quantity);
             closeProductModal();
             showNotification('Added to cart!', 'success');
-        };
+        });
     }
 
     // Show modal
@@ -271,28 +354,25 @@ function addToCart(product, quantity) {
         existingItem.quantity += quantity;
     } else {
         cart.push({
-            id: product.id,
+            id: Number(product.id),
             name: product.name,
             price: product.price,
             quantity: quantity
-        });
+        });        
     }
 
     saveCartToStorage();
-    updateCartUI();
+    updateCartUI(); // Re-attach events
 }
 
 function removeFromCart(productId) {
-    console.log('Removing from cart:', productId);
-    cart = cart.filter(item => item.id !== productId);
+    cart = cart.filter(item => Number(item.id) !== Number(productId));
     saveCartToStorage();
     updateCartUI();
-    setupCartEventDelegation();  // Re-attach after update
 }
 
-
 function updateCartItemQuantity(productId, quantity) {
-    console.log('Updating quantity:', productId, quantity);
+    console.log('Updating quantity:', productId, 'to', quantity);
     const item = cart.find(item => item.id === productId);
     if (item) {
         item.quantity = parseInt(quantity);
@@ -301,7 +381,6 @@ function updateCartItemQuantity(productId, quantity) {
         } else {
             saveCartToStorage();
             updateCartUI();
-            setupCartEventDelegation();  // Re-attach after update
         }
     }
 }
@@ -337,7 +416,7 @@ function updateCartUI() {
             <div class="cart-item-price">$${parseFloat(item.price).toFixed(2)}</div>
             <div class="cart-item-qty">
                 <button class="cart-item-qty-btn" data-action="decrease" data-id="${item.id}" type="button">-</button>
-                <input type="number" class="cart-item-qty-input" data-id="${item.id}" value="${item.quantity}" min="1">
+                <input type="number" class="cart-item-qty-input" data-id="${item.id}" value="${item.quantity}" readonly>
                 <button class="cart-item-qty-btn" data-action="increase" data-id="${item.id}" type="button">+</button>
                 <span style="margin-left: auto; color: var(--primary-red); font-weight: 700;">
                     $${(item.price * item.quantity).toFixed(2)}
@@ -350,104 +429,37 @@ function updateCartUI() {
     cartTotal.textContent = '$' + total.toFixed(2);
 }
 
-function setupCartEventDelegation() {
-    const cartItems = document.getElementById('cartItems');
-    
-    if (!cartItems) {
-        console.error('Cart items container not found');
-        return;
-    }
-
-    // Remove old listeners by cloning (efficient way)
-    const newCartItems = cartItems.cloneNode(true);
-    cartItems.parentNode.replaceChild(newCartItems, cartItems);
-
-    // Single event listener sa container
-    newCartItems.addEventListener('click', (e) => {
-        const button = e.target.closest('button');
-        
-        if (!button) return;
-
-        e.preventDefault();
-        e.stopPropagation();
-
-        // ============================================
-        // DELETE BUTTON
-        // ============================================
-        if (button.classList.contains('cart-item-remove')) {
-            const productId = parseInt(button.getAttribute('data-id'));
-            console.log('Removing product:', productId);
-            removeFromCart(productId);
-            return;
-        }
-
-        // ============================================
-        // DECREASE BUTTON
-        // ============================================
-        if (button.classList.contains('cart-item-qty-btn') && 
-            button.getAttribute('data-action') === 'decrease') {
-            const productId = parseInt(button.getAttribute('data-id'));
-            const currentInput = newCartItems.querySelector(
-                `.cart-item-qty-input[data-id="${productId}"]`
-            );
-            const currentQty = parseInt(currentInput.value);
-            
-            if (currentQty > 1) {
-                updateCartItemQuantity(productId, currentQty - 1);
-            }
-            return;
-        }
-
-        // ============================================
-        // INCREASE BUTTON
-        // ============================================
-        if (button.classList.contains('cart-item-qty-btn') && 
-            button.getAttribute('data-action') === 'increase') {
-            const productId = parseInt(button.getAttribute('data-id'));
-            const currentInput = newCartItems.querySelector(
-                `.cart-item-qty-input[data-id="${productId}"]`
-            );
-            const currentQty = parseInt(currentInput.value);
-            
-            updateCartItemQuantity(productId, currentQty + 1);
-            return;
-        }
-    });
-
-    // Quantity input change
-    newCartItems.addEventListener('change', (e) => {
-        if (e.target.classList.contains('cart-item-qty-input')) {
-            const productId = parseInt(e.target.getAttribute('data-id'));
-            const newQty = parseInt(e.target.value);
-            
-            if (newQty > 0) {
-                updateCartItemQuantity(productId, newQty);
-            }
-        }
-    });
-}
-
 function toggleCart() {
     const cartSidebar = document.getElementById('cartSidebar');
     const overlay = document.getElementById('overlay');
     
-    if (cartSidebar) cartSidebar.classList.toggle('active');
-    if (overlay) overlay.classList.toggle('active');
+    if (cartSidebar && overlay) {
+        cartSidebar.classList.toggle('active');
+        overlay.classList.toggle('active');
+    }
 }
 
 function toggleUserMenu() {
-    const userDropdown = document.querySelector('.user-dropdown-content');
-    if (userDropdown) userDropdown.classList.toggle('active');
+    const userDropdown = document.getElementById('userMenu');
+    if (userDropdown) {
+        userDropdown.style.display = userDropdown.style.display === 'block' ? 'none' : 'block';
+    }
 }
 
 function closeAllModals() {
     const cartSidebar = document.getElementById('cartSidebar');
     const productModal = document.getElementById('productModal');
+    const loginModal = document.getElementById('loginModal');
+    const registerModal = document.getElementById('registerModal');
     const overlay = document.getElementById('overlay');
+    const userDropdown = document.getElementById('userMenu');
     
     if (cartSidebar) cartSidebar.classList.remove('active');
     if (productModal) productModal.classList.remove('active');
+    if (loginModal) loginModal.classList.remove('active');
+    if (registerModal) registerModal.classList.remove('active');
     if (overlay) overlay.classList.remove('active');
+    if (userDropdown) userDropdown.style.display = 'none';
 }
 
 function saveCartToStorage() {
@@ -460,7 +472,6 @@ function loadCartFromStorage() {
         try {
             cart = JSON.parse(stored);
             updateCartUI();
-            setupCartEventDelegation();  // ADD THIS LINE
         } catch (error) {
             console.error('Error parsing cart:', error);
             cart = [];
@@ -489,7 +500,6 @@ function goToCheckout() {
     
     window.location.href = 'checkout.html';
 }
-
 
 function showNotification(message, type = 'success') {
     const notification = document.createElement('div');
@@ -530,12 +540,15 @@ function logout() {
     window.location.href = 'login.html';
 }
 
+
+
 // Export global functions
 window.openProductDetail = openProductDetail;
 window.closeProductModal = closeProductModal;
 window.increaseQuantity = increaseQuantity;
 window.decreaseQuantity = decreaseQuantity;
-window.removeFromCart = removeFromCart;
 window.updateCartItemQuantity = updateCartItemQuantity;
 window.goToCheckout = goToCheckout;
 window.toggleCart = toggleCart;
+window.toggleUserMenu = toggleUserMenu;
+window.closeAllModals = closeAllModals;

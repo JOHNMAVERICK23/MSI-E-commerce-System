@@ -1,6 +1,3 @@
-// File: js/client.js
-// COMPLETE FIX - Modal auto-close, user role redirect, at lahat ng issues
-
 let cart = [];
 let allProducts = [];
 let selectedProductId = null;
@@ -38,10 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function setupEventListeners() {
     console.log('Setting up event listeners...');
-    
-    // ============================================
-    // CART SIDEBAR
-    // ============================================
+
     const cartBtn = document.getElementById('cartBtn');
     if (cartBtn) cartBtn.addEventListener('click', toggleCart);
     
@@ -51,9 +45,6 @@ function setupEventListeners() {
     const continueShopping = document.getElementById('continueShopping');
     if (continueShopping) continueShopping.addEventListener('click', () => toggleCart());
 
-    // ============================================
-    // USER MENU
-    // ============================================
     const userBtn = document.getElementById('userBtn');
     if (userBtn) userBtn.addEventListener('click', toggleUserMenu);
 
@@ -63,30 +54,21 @@ function setupEventListeners() {
         logout();
     });
 
-    // ============================================
-    // OVERLAY CLICK
-    // ============================================
     const overlay = document.getElementById('overlay');
     if (overlay) overlay.addEventListener('click', closeAllModals);
 
-    // ============================================
-    // SEARCH & FILTER
-    // ============================================
+
     const searchInput = document.getElementById('searchInput');
     if (searchInput) searchInput.addEventListener('input', filterProducts);
     
     const categoryFilter = document.getElementById('categoryFilter');
     if (categoryFilter) categoryFilter.addEventListener('change', filterProducts);
 
-    // ============================================
-    // CHECKOUT
-    // ============================================
+
     const checkoutBtn = document.getElementById('checkoutBtn');
     if (checkoutBtn) checkoutBtn.addEventListener('click', goToCheckout);
 
-    // ============================================
-    // CLOSE MODAL BUTTONS (X)
-    // ============================================
+
     const allCloseButtons = document.querySelectorAll('.close-modal');
     allCloseButtons.forEach(button => {
         button.addEventListener('click', (e) => {
@@ -101,9 +83,6 @@ function setupEventListeners() {
         });
     });
 
-    // ============================================
-    // CLICK OUTSIDE MODAL TO CLOSE
-    // ============================================
     document.querySelectorAll('.modal').forEach(modal => {
         modal.addEventListener('click', (e) => {
             if (e.target === modal) {
@@ -114,9 +93,7 @@ function setupEventListeners() {
         });
     });
 
-    // ============================================
-    // QUANTITY BUTTONS
-    // ============================================
+
     const decreaseBtn = document.getElementById('decreaseQty');
     if (decreaseBtn) decreaseBtn.addEventListener('click', decreaseQuantity);
     
@@ -126,9 +103,6 @@ function setupEventListeners() {
     console.log('Event listeners setup complete');
 }
 
-// ============================================
-// PRODUCTS FUNCTIONS
-// ============================================
 
 async function loadProducts() {
     console.log('Loading products...');
@@ -200,9 +174,6 @@ function filterProducts() {
     displayProducts(filtered);
 }
 
-// ============================================
-// PRODUCT DETAIL MODAL
-// ============================================
 
 function openProductDetail(productId) {
     console.log('Opening product detail for ID:', productId);
@@ -292,10 +263,6 @@ function decreaseQuantity() {
     }
 }
 
-// ============================================
-// CART FUNCTIONS
-// ============================================
-
 function addToCart(product, quantity) {
     console.log('Adding to cart:', product.name, 'Qty:', quantity);
     const existingItem = cart.find(item => item.id === product.id);
@@ -316,12 +283,16 @@ function addToCart(product, quantity) {
 }
 
 function removeFromCart(productId) {
+    console.log('Removing from cart:', productId);
     cart = cart.filter(item => item.id !== productId);
     saveCartToStorage();
     updateCartUI();
+    setupCartEventDelegation();  // Re-attach after update
 }
 
+
 function updateCartItemQuantity(productId, quantity) {
+    console.log('Updating quantity:', productId, quantity);
     const item = cart.find(item => item.id === productId);
     if (item) {
         item.quantity = parseInt(quantity);
@@ -330,6 +301,7 @@ function updateCartItemQuantity(productId, quantity) {
         } else {
             saveCartToStorage();
             updateCartUI();
+            setupCartEventDelegation();  // Re-attach after update
         }
     }
 }
@@ -358,15 +330,15 @@ function updateCartUI() {
         <div class="cart-item">
             <div class="cart-item-header">
                 <p class="cart-item-name">${item.name}</p>
-                <button class="cart-item-remove" onclick="removeFromCart(${item.id})">
+                <button class="cart-item-remove" data-id="${item.id}" type="button">
                     <i class="fas fa-trash"></i>
                 </button>
             </div>
             <div class="cart-item-price">$${parseFloat(item.price).toFixed(2)}</div>
             <div class="cart-item-qty">
-                <button onclick="updateCartItemQuantity(${item.id}, ${item.quantity - 1})">-</button>
-                <input type="number" value="${item.quantity}" min="1" onchange="updateCartItemQuantity(${item.id}, this.value)">
-                <button onclick="updateCartItemQuantity(${item.id}, ${item.quantity + 1})">+</button>
+                <button class="cart-item-qty-btn" data-action="decrease" data-id="${item.id}" type="button">-</button>
+                <input type="number" class="cart-item-qty-input" data-id="${item.id}" value="${item.quantity}" min="1">
+                <button class="cart-item-qty-btn" data-action="increase" data-id="${item.id}" type="button">+</button>
                 <span style="margin-left: auto; color: var(--primary-red); font-weight: 700;">
                     $${(item.price * item.quantity).toFixed(2)}
                 </span>
@@ -376,6 +348,83 @@ function updateCartUI() {
 
     const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     cartTotal.textContent = '$' + total.toFixed(2);
+}
+
+function setupCartEventDelegation() {
+    const cartItems = document.getElementById('cartItems');
+    
+    if (!cartItems) {
+        console.error('Cart items container not found');
+        return;
+    }
+
+    // Remove old listeners by cloning (efficient way)
+    const newCartItems = cartItems.cloneNode(true);
+    cartItems.parentNode.replaceChild(newCartItems, cartItems);
+
+    // Single event listener sa container
+    newCartItems.addEventListener('click', (e) => {
+        const button = e.target.closest('button');
+        
+        if (!button) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        // ============================================
+        // DELETE BUTTON
+        // ============================================
+        if (button.classList.contains('cart-item-remove')) {
+            const productId = parseInt(button.getAttribute('data-id'));
+            console.log('Removing product:', productId);
+            removeFromCart(productId);
+            return;
+        }
+
+        // ============================================
+        // DECREASE BUTTON
+        // ============================================
+        if (button.classList.contains('cart-item-qty-btn') && 
+            button.getAttribute('data-action') === 'decrease') {
+            const productId = parseInt(button.getAttribute('data-id'));
+            const currentInput = newCartItems.querySelector(
+                `.cart-item-qty-input[data-id="${productId}"]`
+            );
+            const currentQty = parseInt(currentInput.value);
+            
+            if (currentQty > 1) {
+                updateCartItemQuantity(productId, currentQty - 1);
+            }
+            return;
+        }
+
+        // ============================================
+        // INCREASE BUTTON
+        // ============================================
+        if (button.classList.contains('cart-item-qty-btn') && 
+            button.getAttribute('data-action') === 'increase') {
+            const productId = parseInt(button.getAttribute('data-id'));
+            const currentInput = newCartItems.querySelector(
+                `.cart-item-qty-input[data-id="${productId}"]`
+            );
+            const currentQty = parseInt(currentInput.value);
+            
+            updateCartItemQuantity(productId, currentQty + 1);
+            return;
+        }
+    });
+
+    // Quantity input change
+    newCartItems.addEventListener('change', (e) => {
+        if (e.target.classList.contains('cart-item-qty-input')) {
+            const productId = parseInt(e.target.getAttribute('data-id'));
+            const newQty = parseInt(e.target.value);
+            
+            if (newQty > 0) {
+                updateCartItemQuantity(productId, newQty);
+            }
+        }
+    });
 }
 
 function toggleCart() {
@@ -411,6 +460,7 @@ function loadCartFromStorage() {
         try {
             cart = JSON.parse(stored);
             updateCartUI();
+            setupCartEventDelegation();  // ADD THIS LINE
         } catch (error) {
             console.error('Error parsing cart:', error);
             cart = [];
@@ -440,9 +490,6 @@ function goToCheckout() {
     window.location.href = 'checkout.html';
 }
 
-// ============================================
-// UTILITY FUNCTIONS
-// ============================================
 
 function showNotification(message, type = 'success') {
     const notification = document.createElement('div');

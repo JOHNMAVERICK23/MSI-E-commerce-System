@@ -17,8 +17,7 @@
                 <h1>MSI Gaming</h1>
             </div>
             <ul class="navbar-menu">
-                <li><a href="#" class="nav-link active">Shop</a></li>
-                <li><a href="#" class="nav-link">About</a></li>
+                <li><a href="#" class="nav-link active"></a></li>
             </ul>
             <div class="navbar-actions">
                 <button class="btn-cart" id="cartBtn">
@@ -52,7 +51,6 @@
             <p>Experience ultimate performance with MSI</p>
         </section>
 
-        <!-- Registration Banner (Only show if not logged in) -->
         <div id="registrationSection">
             <!-- Will be populated by JavaScript -->
         </div>
@@ -199,12 +197,9 @@
             </button>
         </div>
     </div>
-
-    <!-- Include Scripts -->
-    <script src="js/toast.js"></script>
-    <script src="js/auth.js"></script>
-    <script src="js/client.js"></script>
-    <script src="js/toast.js"></script>
+    <script src="js/toast.js"></script>      
+    <script src="js/auth.js"></script>       
+    <script src="js/client.js"></script>     
     
     <script>
     // Registration/Login logic for index.html
@@ -245,15 +240,36 @@
         }
         
         // Setup modal forms
-        document.getElementById('customerLoginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            await handleQuickLogin(e);
-        });
+        const loginForm = document.getElementById('customerLoginForm');
+        if (loginForm) {
+            loginForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await handleQuickLogin(e);
+            });
+        }
         
-        document.getElementById('customerRegisterForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            await handleQuickRegister();
-        });
+        const registerForm = document.getElementById('customerRegisterForm');
+        if (registerForm) {
+            registerForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await handleQuickRegister();
+            });
+        }
+
+        // ============================================
+        // Cart sidebar close button
+        // ============================================
+        const closeCartBtn = document.getElementById('closeCartBtn');
+        if (closeCartBtn) {
+            closeCartBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const cartSidebar = document.getElementById('cartSidebar');
+                const overlay = document.getElementById('overlay');
+                
+                if (cartSidebar) cartSidebar.classList.remove('active');
+                if (overlay) overlay.classList.remove('active');
+            });
+        }
     });
     
     function openLoginModal() {
@@ -295,6 +311,8 @@
                 toast.success('Success', 'Account created! Please login.');
                 document.getElementById('registerModal').classList.remove('active');
                 document.getElementById('overlay').classList.remove('active');
+                document.getElementById('customerRegisterForm').reset();
+                
                 setTimeout(() => openLoginModal(), 1000);
             } else {
                 toast.error('Registration Failed', data.message);

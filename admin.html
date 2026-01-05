@@ -28,6 +28,9 @@
                 <a href="#" class="nav-item" data-tab="orders">
                     <i class="fas fa-shopping-cart"></i> Orders
                 </a>
+                <a href="#" class="nav-item" data-tab="reports">
+                    <i class="fas fa-chart-bar"></i> Reports
+                </a>
             </nav>
             <div class="sidebar-footer">
                 <button id="logoutBtn" class="btn-logout">
@@ -141,6 +144,40 @@
                 <h1>Orders Management</h1>
                 <div id="ordersList" class="orders-list">
                     <p class="loading">Loading orders...</p>
+                </div>
+            </section>
+            <section id="reports" class="tab-content">
+                <div class="section-header">
+                    <h1>Reports & Analytics</h1>
+                </div>
+            
+                <div class="filter-section" style="margin-bottom: 20px; display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
+                    <select id="reportType" class="filter-select">
+                        <option value="sales">Sales Report</option>
+                        <option value="orders">Order Report</option>
+                        <option value="products">Product Report</option>
+                        <option value="customers">Customer Report</option>
+                    </select>
+            
+                    <select id="reportPeriod" class="filter-select">
+                        <option value="week">Last 7 Days</option>
+                        <option value="month">Last 30 Days</option>
+                        <option value="year">Last Year</option>
+                    </select>
+            
+                    <button class="btn-primary" onclick="generateReport()" style="display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-sync"></i> Generate Report
+                    </button>
+                    <button class="btn-primary" onclick="exportReport('csv')" style="display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-download"></i> Export CSV
+                    </button>
+                    <button class="btn-primary" onclick="exportReport('html')" style="display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-file"></i> Export HTML
+                    </button>
+                </div>
+            
+                <div id="reportContent" class="products-list">
+                    <p class="loading">Select report options and click "Generate Report"</p>
                 </div>
             </section>
         </main>

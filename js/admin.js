@@ -868,6 +868,199 @@ async function loadOrders() {
     }
 }
 
+// File: js/admin.js - PARTIAL (ADD THESE FUNCTIONS AT THE END)
+// ============================================
+// REPORTS FUNCTIONALITY (NEW - ADD AT END OF FILE)
+// ============================================
+
+async function generateReport() {
+    const reportType = document.getElementById('reportType').value;
+    const reportPeriod = document.getElementById('reportPeriod').value;
+
+    try {
+        const response = await fetch(`php/reports.php?action=${reportType}_report&period=${reportPeriod}`);
+        const data = await response.json();
+
+        if (data.status === 'success') {
+            displayReportData(data, reportType);
+            toast.success('Success', 'Report generated successfully');
+        } else {
+            toast.error('Error', data.message || 'Failed to generate report');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        toast.error('Error', 'Failed to generate report');
+    }
+}
+
+function displayReportData(data, reportType) {
+    const reportContent = document.getElementById('reportContent');
+    
+    if (reportType === 'sales') {
+        const summary = data.summary || {};
+        let html = `
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon revenue">
+                        <i class="fas fa-dollar-sign"></i>
+                    </div>
+                    <div class="stat-info">
+                        <p class="stat-label">Total Revenue</p>
+                        <h3>$${parseFloat(summary.total_revenue || 0).toFixed(2)}</h3>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon orders">
+                        <i class="fas fa-shopping-cart"></i>
+                    </div>
+                    <div class="stat-info">
+                        <p class="stat-label">Total Orders</p>
+                        <h3>${summary.total_orders || 0}</h3>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon products">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <div class="stat-info">
+                        <p class="stat-label">Avg Order Value</p>
+                        <h3>$${parseFloat(summary.avg_order_value || 0).toFixed(2)}</h3>
+                    </div>
+                </div>
+            </div>
+            <table style="width:100%; margin-top:20px; border-collapse:collapse;">
+                <thead>
+                    <tr style="background: var(--bg-muted); border-bottom: 2px solid var(--primary-red);">
+                        <th style="padding:12px; text-align:left;">Date</th>
+                        <th style="padding:12px; text-align:right;">Orders</th>
+                        <th style="padding:12px; text-align:right;">Revenue</th>
+                        <th style="padding:12px; text-align:right;">Avg Order</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        (data.data || []).forEach(row => {
+            html += `
+                <tr style="border-bottom:1px solid var(--border-color);">
+                    <td style="padding:12px;">${row.date}</td>
+                    <td style="padding:12px; text-align:right;">${row.order_count}</td>
+                    <td style="padding:12px; text-align:right; color:var(--primary-red); font-weight:600;">$${parseFloat(row.total_revenue).toFixed(2)}</td>
+                    <td style="padding:12px; text-align:right;">$${parseFloat(row.avg_order_value).toFixed(2)}</td>
+                </tr>
+            `;
+        });
+        html += `</tbody></table>`;
+        reportContent.innerHTML = html;
+    } 
+    else if (reportType === 'orders') {
+        const breakdown = data.status_breakdown || {};
+        let html = `
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-hourglass-half"></i></div>
+                    <div class="stat-info">
+                        <p class="stat-label">Pending</p>
+                        <h3>${breakdown.pending || 0}</h3>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-spinner"></i></div>
+                    <div class="stat-info">
+                        <p class="stat-label">Processing</p>
+                        <h3>${breakdown.processing || 0}</h3>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+                    <div class="stat-info">
+                        <p class="stat-label">Completed</p>
+                        <h3>${breakdown.completed || 0}</h3>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-times-circle"></i></div>
+                    <div class="stat-info">
+                        <p class="stat-label">Cancelled</p>
+                        <h3>${breakdown.cancelled || 0}</h3>
+                    </div>
+                </div>
+            </div>
+        `;
+        reportContent.innerHTML = html;
+    }
+    else if (reportType === 'products') {
+        let html = `
+            <table style="width:100%; border-collapse:collapse;">
+                <thead>
+                    <tr style="background: var(--bg-muted); border-bottom: 2px solid var(--primary-red);">
+                        <th style="padding:12px; text-align:left;">Product</th>
+                        <th style="padding:12px; text-align:right;">Price</th>
+                        <th style="padding:12px; text-align:right;">Sales</th>
+                        <th style="padding:12px; text-align:right;">Revenue</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        (data.data || []).forEach(row => {
+            html += `
+                <tr style="border-bottom:1px solid var(--border-color);">
+                    <td style="padding:12px;">${row.name}</td>
+                    <td style="padding:12px; text-align:right;">$${parseFloat(row.price).toFixed(2)}</td>
+                    <td style="padding:12px; text-align:right;">${row.sales_count || 0}</td>
+                    <td style="padding:12px; text-align:right; color:var(--primary-red); font-weight:600;">$${parseFloat(row.revenue || 0).toFixed(2)}</td>
+                </tr>
+            `;
+        });
+        html += `</tbody></table>`;
+        reportContent.innerHTML = html;
+    }
+    else if (reportType === 'customers') {
+        let html = `
+            <table style="width:100%; border-collapse:collapse;">
+                <thead>
+                    <tr style="background: var(--bg-muted); border-bottom: 2px solid var(--primary-red);">
+                        <th style="padding:12px; text-align:left;">Customer</th>
+                        <th style="padding:12px; text-align:center;">Orders</th>
+                        <th style="padding:12px; text-align:right;">Total Spent</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        (data.data || []).forEach(row => {
+            html += `
+                <tr style="border-bottom:1px solid var(--border-color);">
+                    <td style="padding:12px;">${row.first_name} ${row.last_name}</td>
+                    <td style="padding:12px; text-align:center;">${row.order_count || 0}</td>
+                    <td style="padding:12px; text-align:right; color:var(--primary-red); font-weight:600;">$${parseFloat(row.total_spent || 0).toFixed(2)}</td>
+                </tr>
+            `;
+        });
+        html += `</tbody></table>`;
+        reportContent.innerHTML = html;
+    }
+}
+
+function exportReport(format) {
+    const reportType = document.getElementById('reportType').value;
+    const reportPeriod = document.getElementById('reportPeriod').value;
+
+    if (format === 'csv') {
+        window.location.href = `php/reports.php?action=export_csv&type=${reportType}&period=${reportPeriod}`;
+    } else if (format === 'html') {
+        window.location.href = `php/reports.php?action=export_html&type=${reportType}&period=${reportPeriod}`;
+    }
+
+    toast.success('Exporting', `Exporting ${reportType} report as ${format.toUpperCase()}...`);
+}
+
+// Export global functions
+window.generateReport = generateReport;
+window.exportReport = exportReport;
+window.editProduct = editProduct;
+window.deleteProduct = deleteProduct;
+window.toggleStaffStatus = toggleStaffStatus;
+window.deleteStaff = deleteStaff;
+
 // Export functions for global access
 window.editProduct = editProduct;
 window.deleteProduct = deleteProduct;

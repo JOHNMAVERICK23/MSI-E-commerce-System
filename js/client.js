@@ -51,6 +51,23 @@ function setupEventListeners() {
         logout();
     });
 
+    // ============================================
+    // MY ORDERS LINK HANDLER (NEW)
+    // ============================================
+    const myOrdersLink = document.getElementById('myOrdersLink');
+    if (myOrdersLink) {
+        myOrdersLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            const user = getUser();
+            if (user && user.role === 'customer') {
+                window.location.href = 'customer-orders.html';
+            } else {
+                toast.error('Login Required', 'Please login as customer to view orders');
+                openLoginModal();
+            }
+        });
+    }
+
     // Overlay click
     const overlay = document.getElementById('overlay');
     if (overlay) overlay.addEventListener('click', closeAllModals);
@@ -100,10 +117,9 @@ function setupEventListeners() {
     if (increaseBtn) increaseBtn.addEventListener('click', increaseQuantity);
 
     const cartItems = document.getElementById('cartItems');
-if (cartItems) {
-    cartItems.addEventListener('click', handleCartClick);
-}
-
+    if (cartItems) {
+        cartItems.addEventListener('click', handleCartClick);
+    }
 
     console.log('Event listeners setup complete');
 }
@@ -362,7 +378,7 @@ function addToCart(product, quantity) {
     }
 
     saveCartToStorage();
-    updateCartUI(); // Re-attach events
+    updateCartUI();
 }
 
 function removeFromCart(productId) {

@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Receipt - MSI Gaming</title>
+    <link rel="stylesheet" href="css/variables.css">
+    <link rel="stylesheet" href="css/toast.css">
+    <link rel="stylesheet" href="css/order-receipt.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="receipt-container">
+        <div id="receiptContent" class="loading">
+            <i class="fas fa-spinner fa-spin"></i> Loading receipt...
+        </div>
+
+        <div class="action-buttons">
+            <button class="btn btn-print" onclick="printReceipt()">
+                <i class="fas fa-print"></i> Print Receipt
+            </button>
+            <button class="btn btn-download" onclick="downloadPDF()">
+                <i class="fas fa-download"></i> Download PDF
+            </button>
+            <button class="btn btn-back" onclick="goBack()">
+                <i class="fas fa-arrow-left"></i> Back to Orders
+            </button>
+        </div>
+    </div>
+
+    <script src="js/toast.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const user = getUser();
+            if (!user || user.role !== 'customer') {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            const params = new URLSearchParams(window.location.search);
+            const orderId = params.get('orderId');
+
+            if (orderId) {
+                loadReceipt(orderId);
+            } else {
+                showError('Order ID not provided');
+            }
+        });
+
+        async function loadReceipt(orderId) {
+            try {
+                const response = await fetch(`php/orders.php?action=get_receipt&orderId=${orderId}`);
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    displayReceipt(data.data);
+                } else {
+                    showError(data.message || 'Failed to load receipt');
+                }
+            } catch (error) {
+                console.error('Error loading receipt:', error);
+                showError('An error occurred while loading the receipt');
+            }
+        }
+
+        function displayReceipt(order) {
+            const subtotal = parseFloat(order.subtotal || 0);
+            const shipping = parseFloat(order.shipping || 10);
+            const tax = parseFloat(order.tax || 0);
+            const total = parseFloat(order.total_amount || 0);
+
+            const items = order.items || [];
+            const itemsHTML = items.map(item => `
+                <div class="item-row">
+                    <div class="item-name">${item.product_name || 'Product'}</div>
+                    <div class="item-qty">${item.quantity}</div>
+                    <div class="item-price">$${parseFloat(item.unit_price).toFixed(2)}</div>
+                    <div class="item-total">$${(item.quantity * item.unit_price).toFixed(2)}</div>
+                </div>
+            `).join('');
+
+            const paymentStatus = order.payment_status === 'paid' ? 'PAID' : 'PENDING';
+            const statusClass = order.payment_status === 'paid' ? 'status-paid' : 'status-pending';
+
+            const receiptHTML = `
+                <div class="receipt">
+                    <div class="receipt-header">
+                        <div class="company-logo"><i class="fas fa-gamepad"></i></div>
+                        <div class="company-name">MSI Gaming</div>
+                        <div class="company-contact">
+                            <div>Email: support@msigaming.com</div>
+                            <div>Phone: +1 (800) MSI-GAME</div>
+                            <div>Website: www.msigaming.com</div>
+                        </div>
+                    </div>
+
+                    <div class="receipt-title">Order Receipt</div>
+
+                    <div class="receipt-info">
+                        <div class="info-section">
+                            <h4>Order Details</h4>
+                            <div class="info-row">
+                                <span class="info-label">Order #:</span>
+                                <span class="info-value">${order.order_number}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Date:</span>
+                                <span class="info-value">${formatDate(order.created_at)}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Status:</span>
+                                <span class="info-value" style="text-transform: uppercase;">${order.status}</span>
+                            </div>
+                        </div>
+
+                        <div class="info-section">
+                            <h4>Billing Information</h4>
+                            <div class="info-row">
+                                <span class="info-label">Full Name:</span>
+                                <span class="info-value">${order.customer_name || 'N/A'}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Email:</span>
+                                <span class="info-value">${order.customer_email || 'N/A'}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Phone:</span>
+                                <span class="info-value">${order.customer_phone || 'N/A'}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="divider"></div>
+
+                    <div class="receipt-info">
+                        <div class="info-section">
+                            <h4>Shipping Address</h4>
+                            <div class="info-row">
+                                <span class="info-value">${order.shipping_address || 'Not provided'}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-value">${order.shipping_city || ''} ${order.shipping_postal || ''}</span>
+                            </div>
+                        </div>
+
+                        <div class="info-section">
+                            <h4>Payment Method</h4>
+                            <div class="info-row">
+                                <span class="info-value" style="text-transform: uppercase;">${order.payment_method || 'Not specified'}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="divider"></div>
+
+                    <div class="items-section">
+                        <div class="items-header">
+                            <div>Product</div>
+                            <div>Qty</div>
+                            <div>Price</div>
+                            <div>Total</div>
+                        </div>
+                        ${itemsHTML}
+                    </div>
+
+                    <div class="divider"></div>
+
+                    <div class="totals-section">
+                        <div class="total-row">
+                            <span class="total-label">Subtotal:</span>
+                            <span class="total-value">$${subtotal.toFixed(2)}</span>
+                        </div>
+                        <div class="total-row">
+                            <span class="total-label">Shipping:</span>
+                            <span class="total-value">$${shipping.toFixed(2)}</span>
+                        </div>
+                        <div class="total-row">
+                            <span class="total-label">Tax (10%):</span>
+                            <span class="total-value">$${tax.toFixed(2)}</span>
+                        </div>
+                        <div class="grand-total">
+                            <span>TOTAL:</span>
+                            <span>$${total.toFixed(2)}</span>
+                        </div>
+                    </div>
+
+                    <div class="payment-info">
+                        <div class="payment-method">
+                            <strong>Payment Method:</strong> ${order.payment_method || 'Not specified'}
+                        </div>
+                        <div class="payment-status">
+                            <span>Payment Status:</span>
+                            <span class="status-badge ${statusClass}">${paymentStatus}</span>
+                        </div>
+                    </div>
+
+                    <div class="receipt-footer">
+                        <div>Thank you for your purchase!</div>
+                        <div style="margin-top: 10px; font-size: 11px;">
+                            This is an automated receipt. Please keep it for your records.
+                        </div>
+                        <div class="receipt-number">${new Date(order.created_at).getTime()}</div>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('receiptContent').innerHTML = receiptHTML;
+        }
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        function printReceipt() {
+            window.print();
+        }
+
+        function downloadPDF() {
+            toast.info('Info', 'PDF download feature coming soon!');
+        }
+
+        function goBack() {
+            window.location.href = 'customer-orders.html';
+        }
+
+        function showError(message) {
+            document.getElementById('receiptContent').innerHTML = `
+                <div class="error-message">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <p>${message}</p>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

@@ -247,6 +247,9 @@ function filterProducts() {
     displayProducts(filtered);
 }
 
+// FILE: js/client.js - FIXED SECTION
+// Replace your openProductDetail function with this
+
 function openProductDetail(productId) {
     console.log('Opening product detail for ID:', productId);
     
@@ -254,7 +257,7 @@ function openProductDetail(productId) {
     
     if (!product) {
         console.error('Product not found with ID:', productId);
-        showNotification('Product not found', 'error');
+        toast.error('Error', 'Product not found');
         return false;
     }
 
@@ -267,13 +270,42 @@ function openProductDetail(productId) {
     document.getElementById('detailPrice').textContent = '$' + parseFloat(product.price).toFixed(2);
     document.getElementById('detailStock').textContent = product.stock + ' available';
     
+    // FIX: PROPERLY DISPLAY PRODUCT IMAGE
+    const detailImage = document.querySelector('.detail-image');
+    if (detailImage) {
+        detailImage.innerHTML = ''; // Clear previous content
+        
+        if (product.image_url && product.image_url !== 'assets/default-product.png') {
+            // Create and append image element
+            const img = document.createElement('img');
+            img.src = product.image_url;
+            img.alt = product.name;
+            img.style.width = '100%';
+            img.style.height = '100%';
+            img.style.objectFit = 'cover';
+            img.style.borderRadius = '8px';
+            detailImage.appendChild(img);
+            
+            console.log('✓ Image loaded:', product.image_url);
+        } else {
+            // Show default icon if no image
+            const icon = document.createElement('i');
+            icon.className = 'fas fa-box';
+            icon.style.fontSize = '80px';
+            icon.style.color = 'var(--primary-red)';
+            detailImage.appendChild(icon);
+            
+            console.log('⚠ No image, showing default icon');
+        }
+    }
+    
     const quantityInput = document.getElementById('quantityInput');
     if (quantityInput) {
         quantityInput.value = 1;
         quantityInput.max = product.stock;
     }
 
-    // FIXED: Re-attach quantity button events
+    // Re-attach quantity button events
     const decreaseBtn = document.getElementById('decreaseQty');
     const increaseBtn = document.getElementById('increaseQty');
     const addToCartBtn = document.getElementById('addToCartBtn');
@@ -312,13 +344,13 @@ function openProductDetail(productId) {
             const quantity = parseInt(document.getElementById('quantityInput').value);
             
             if (product.stock < quantity) {
-                showNotification('Not enough stock! Available: ' + product.stock, 'error');
+                toast.error('Out of Stock', 'Not enough stock! Available: ' + product.stock);
                 return;
             }
             
             addToCart(product, quantity);
             closeProductModal();
-            showNotification('Added to cart!', 'success');
+            toast.success('Added to Cart!', product.name + ' has been added');
         });
     }
 
@@ -329,7 +361,7 @@ function openProductDetail(productId) {
     if (productModal) productModal.classList.add('active');
     if (overlay) overlay.classList.add('active');
     
-    console.log('Product modal opened');
+    console.log('✓ Product modal opened');
     return false;
 }
 

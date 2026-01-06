@@ -81,7 +81,7 @@ function getRedirectUrl(role) {
             return 'staff.html';
         case 'customer':
         default:
-            return 'index.html';
+            return 'home.html';
     }
 }
 

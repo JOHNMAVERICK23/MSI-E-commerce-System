@@ -46,6 +46,24 @@
             align-items: center;
         }
 
+        .brand-link {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+}
+
+.brand-link h1 {
+    margin: 0;
+}
+
+.logo{
+    display: flex;
+    max-height: fit-content;
+    border-radius: 10px;
+    width: 90px;
+    margin-right: 10px;
+}
+
         .btn-logout {
             padding: 10px 20px;
             background: transparent;
@@ -427,6 +445,103 @@
             border-color: var(--primary-red);
         }
 
+        footer {
+    background: var(--bg-card);
+    border-top: 2px solid var(--border-color);
+    padding: 30px 20px 15px;
+    margin-top: 30px;
+}
+
+footer .container {
+    padding: 0;
+}
+
+footer .row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 25px;
+    margin-bottom: 25px;
+}
+
+footer h5 {
+    color: var(--primary-red);
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+footer p {
+    color: var(--text-foreground);
+    opacity: 0.8;
+    line-height: 1.8;
+    font-size: 14px;
+}
+
+footer ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+footer ul li {
+    margin-bottom: 12px;
+}
+
+footer ul li a {
+    color: var(--text-foreground);
+    opacity: 0.7;
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+footer ul li a:hover {
+    color: var(--primary-red);
+    opacity: 1;
+    transform: translateX(5px);
+}
+
+footer i {
+    color: var(--primary-red);
+    margin-right: 8px;
+    font-size: 16px;
+}
+
+footer hr {
+    background: var(--border-color);
+    border: none;
+    height: 1px;
+    margin: 20px 0;
+}
+
+footer .text-center {
+    text-align: center;
+    padding-top: 20px;
+}
+
+footer .text-center p {
+    color: var(--text-foreground);
+    opacity: 0.6;
+    font-size: 13px;
+    margin: 0;
+}
+
+@media (max-width: 768px) {
+    footer .row {
+        grid-template-columns: 1fr;
+        gap: 30px;
+    }
+
+    footer h5 {
+        font-size: 16px;
+    }
+
+    footer .col-md-4 {
+        text-align: center;
+    }
+}
+
         @media (max-width: 768px) {
             .order-header {
                 flex-direction: column;
@@ -452,7 +567,10 @@
     <!-- Navigation -->
     <nav class="navbar">
         <div class="navbar-brand">
-            <h1>MSI Gaming</h1>
+            <a href="home.html" class="brand-link">
+                <img class="logo" src="./assets/images/Logo.jpg" alt="logo MSI">
+                <h1>MSI Gaming</h1>
+                </a>
         </div>
         <div class="nav-actions">
             <a href="index.html" class="btn-back">
@@ -485,6 +603,37 @@
             </div>
         </div>
     </div>
+
+    <footer class="bg-dark text-white">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-4">
+                    <h5>MSI Gaming</h5>
+                    <p>Leading the world in gaming hardware and innovative technology since 1986.</p>
+                </div>
+                <div class="col-md-4">
+                    <h5>Quick Links</h5>
+                    <ul class="list-unstyled">
+                        <li><a href="home.html" class="text-white-50 text-decoration-none">Home</a></li>
+                        <li><a href="index.html" class="text-white-50 text-decoration-none">Products</a></li>
+                        <li><a href="About.html" class="text-white-50 text-decoration-none">Abou Us</a></li>
+                    </ul>
+                </div>
+                <div class="col-md-4">
+                    <h5>Contact Info</h5>
+                    <p>
+                        <i class="fas fa-map-marker-alt">New Taipei City 235, Taiwan</i> <br>
+                        <i class="fas fa-phone">+886-2-3234-5599</i> <br>
+                        <i class="fas fa-envelope">acs@msi.com</i>
+                    </p>
+                </div>
+            </div>
+            <hr class="bg-light">
+            <div class="text-center">
+                <p class="mb-0">&copy; 2026 MSI E-commerece. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
 
     <script src="js/toast.js"></script>
     <script src="js/auth.js"></script>

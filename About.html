@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="css/variables.css">
     <link rel="stylesheet" href="css/toast.css">
     <link rel="stylesheet" href="css/about.css">
+    <link rel="stylesheet" href="css/responsive-nav.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
@@ -15,30 +16,40 @@
         <div class="navbar-container">
             <div class="navbar-brand">
                 <a href="home.html" class="brand-link">
-                <img class="logo" src="./assets/images/Logo.jpg" alt="logo MSI">
-                <h1>MSI Gaming</h1>
+                    <img class="logo" src="./assets/images/Logo.jpg" alt="logo MSI">
+                    <h1>MSI Gaming</h1>
                 </a>
             </div>
-            <ul class="navbar-menu">
-                <li><a href="home.html" class="nav-link"><i class="fas fa-shop"></i>Home</a></li>
-                <li><a href="index.html" class="nav-link"><i class="fas fa-box"></i>Product</a></li>
-                <li><a href="#" class="nav-link active"><i class="fas fa-info-circle"></i>About Us</a></li>
-                <li><a href="customer-orders.html" id="myOrdersLink" class="nav-link"><i class="fas fa-list"></i>My Orders</a></li>
-            </ul>
-            <div class="navbar-actions">
-                <div class="user-dropdown">
-                    <button class="btn-user" id="userBtn">
-                        <i class="fas fa-user"></i>
-                    </button>
-                    <div id="userMenu" class="user-dropdown-content">
-                        <div id="userInfo" style="padding: 10px; display: none;">
-                            <strong id="userName"></strong>
-                            <small id="userEmail" style="display: block;"></small>
-                        </div>
-                        <a href="#" id="myOrdersLink" class="menu-item">My Orders</a>
-                        <a href="#" id="logoutLink" class="menu-item logout">Logout</a>
-                        <div id="loginSection" style="padding: 10px;">
-                            <button onclick="openLoginModal()" class="btn-login-small">Customer Login</button>
+            
+            <!-- Hamburger Button for Mobile -->
+            <button class="mobile-menu-btn" id="mobileMenuBtn">
+                <i class="fas fa-bars"></i>
+            </button>
+            
+            <!-- Menu Items and Actions -->
+            <div class="navbar-collapse" id="navbarCollapse">
+                <ul class="navbar-menu">
+                    <li><a href="home.html" class="nav-link"><i class="fas fa-shop"></i>Home</a></li>
+                    <li><a href="index.html" class="nav-link"><i class="fas fa-box"></i>Product</a></li>
+                    <li><a href="#" class="nav-link active"><i class="fas fa-info-circle"></i>About Us</a></li>
+                    <li><a href="customer-orders.html" id="myOrdersLink" class="nav-link"><i class="fas fa-list"></i>My Orders</a></li>
+                </ul>
+                
+                <div class="navbar-actions">
+                    <div class="user-dropdown">
+                        <button class="btn-user" id="userBtn">
+                            <i class="fas fa-user"></i>
+                        </button>
+                        <div id="userMenu" class="user-dropdown-content">
+                            <div id="userInfo" style="padding: 10px; display: none;">
+                                <strong id="userName"></strong>
+                                <small id="userEmail" style="display: block;"></small>
+                            </div>
+                            <a href="#" id="myOrdersLink" class="menu-item">My Orders</a>
+                            <a href="#" id="logoutLink" class="menu-item logout">Logout</a>
+                            <div id="loginSection" style="padding: 10px;">
+                                <button onclick="openLoginModal()" class="btn-login-small">Customer Login</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -224,7 +235,7 @@
             </div>
         </div>
     </footer>
-
+    <script src="js/responsive-nav.js"></script>
     <script src="js/toast.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/client.js"></script>

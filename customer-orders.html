@@ -6,6 +6,7 @@
     <title>My Orders - MSI Gaming</title>
     <link rel="stylesheet" href="css/variables.css">
     <link rel="stylesheet" href="css/toast.css">
+    <link rel="stylesheet" href="css/responsive-nav.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * {
@@ -561,27 +562,93 @@ footer .text-center p {
                 align-items: flex-start;
             }
         }
+
+        /* Right side container */
+.navbar-right {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+/* Hamburger default hidden (desktop) */
+.mobile-menu-btn {
+    display: none;
+    background: none;
+    border: none;
+    font-size: 22px;
+    color: var(--text-foreground);
+    cursor: pointer;
+}
+
+/* MOBILE VIEW */
+@media (max-width: 768px) {
+    .nav-actions {
+        display: none; /* hide buttons */
+    }
+
+    .mobile-menu-btn {
+        display: block; /* show hamburger */
+    }
+}
+
+@media (max-width: 768px) {
+    #navbarCollapse {
+        position: absolute;
+        top: 70px;
+        right: 20px;
+        background: var(--bg-card);
+        border: 2px solid var(--border-color);
+        border-radius: 8px;
+        padding: 15px;
+        display: none;
+        flex-direction: column;
+        gap: 10px;
+        z-index: 999;
+    }
+
+    #navbarCollapse.active {
+        display: flex;
+    }
+
+    .nav-actions a,
+    .nav-actions button {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+
     </style>
 </head>
 <body>
     <!-- Navigation -->
     <nav class="navbar">
-        <div class="navbar-brand">
-            <a href="home.html" class="brand-link">
-                <img class="logo" src="./assets/images/Logo.jpg" alt="logo MSI">
-                <h1>MSI Gaming</h1>
+        <!-- LEFT -->
+        <a href="home.html" class="brand-link">
+            <img class="logo" src="./assets/images/Logo.jpg" alt="logo MSI">
+            <h1>MSI Gaming</h1>
+        </a>
+    
+        <!-- RIGHT -->
+        <div class="navbar-right">
+            <!-- MENU (ito ang ita-toggle) -->
+            <div class="nav-actions" id="navbarCollapse">
+                <a href="index.html" class="btn-back">
+                    <i class="fas fa-arrow-left"></i> Back to Shop
                 </a>
-        </div>
-        <div class="nav-actions">
-            <a href="index.html" class="btn-back">
-                <i class="fas fa-arrow-left"></i> Back to Shop
-            </a>
-            <button class="btn-logout" onclick="logout()">
-                <i class="fas fa-sign-out-alt"></i> Logout
+                <button class="btn-logout" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
+    
+            <!-- HAMBURGER -->
+            <button class="mobile-menu-btn" id="mobileMenuBtn">
+                <i class="fas fa-bars"></i>
             </button>
         </div>
     </nav>
-
+    
+    
     <!-- Main Content -->
     <div class="container">
         <div class="page-header">
@@ -634,7 +701,7 @@ footer .text-center p {
             </div>
         </div>
     </footer>
-
+    <script src="js/responsive-nav.js"></script>
     <script src="js/toast.js"></script>
     <script src="js/auth.js"></script>
     <script>

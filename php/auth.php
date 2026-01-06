@@ -141,7 +141,8 @@ function trackFailedAttempt($username, $attemptKey, $cooldownKey) {
     
     // After 3 failed attempts, set cooldown (3 minutes = 180 seconds)
     if ($attempts >= 3) {
-        $_SESSION[$cooldownKey] = time() + (3 * 60); // 3 minutes cooldown
+       $_SESSION[$cooldownKey] = time() + (3 * 60); 
+      // $_SESSION[$cooldownKey] = time() + 30;
     }
 }
 

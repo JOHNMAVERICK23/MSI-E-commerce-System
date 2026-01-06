@@ -1085,3 +1085,78 @@ footer .text-center p {
         padding: 25px 20px;
     }
 }
+
+/* Responsive styles for home page */
+@media (max-width: 992px) {
+    .hero-title {
+        font-size: 3.5rem;
+    }
+    
+    .hero-subtitle {
+        font-size: 1.1rem;
+    }
+    
+    .products-grid {
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 20px;
+    }
+    
+    .about-container {
+        grid-template-columns: 1fr;
+        gap: 40px;
+    }
+    
+    .about-visual {
+        order: -1;
+        height: 300px;
+    }
+}
+
+@media (max-width: 768px) {
+    .hero-title {
+        font-size: 2.5rem;
+    }
+    
+    .hero-subtitle {
+        font-size: 1rem;
+    }
+    
+    .section-header h2 {
+        font-size: 2.5rem;
+    }
+    
+    .features-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+    }
+    
+    .carousel-slide {
+        height: 300px;
+    }
+    
+    .carousel-slide-title {
+        font-size: 24px;
+    }
+}
+
+@media (max-width: 480px) {
+    .hero-title {
+        font-size: 2rem;
+    }
+    
+    .features-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .carousel-slide {
+        height: 250px;
+    }
+    
+    .carousel-slide-title {
+        font-size: 20px;
+    }
+    
+    .carousel-slide-description {
+        font-size: 14px;
+    }
+}
